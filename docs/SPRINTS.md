@@ -18,9 +18,10 @@ Teste sugerido: gold set pequeno; comparar extração numa passada × versão qu
 
 - [x] 1. Repositório, pdfscope separado, ingestão guiada pelo índice
 - [x] (extra) Banco com categorias/atributos dinâmicos e camada canônica
-- [~] 2. Gold set: rascunho em `gold/` (Ordem: 53 entradas, D&D: 57, + negativos) — **falta conferência humana**
-- [ ] 3. Baseline: 1 LLM, saída estruturada, todos os chunks
-- [ ] 4. Avaliação: precisão, cobertura, % indevido, tokens por entrada
+- [x] 2. Gold set em `gold/` (Ordem: 53 entradas, D&D: 57, + opcionais e páginas negativas), conferido no revisor visual
+- [x] (extra) Revisor visual do gabarito e das saídas (`compendio revisar`)
+- [~] 3. Baseline: 1 LLM, uma chamada por página, saída estruturada (`compendio extrair`) — falta rodar
+- [x] 4. Avaliação: precisão, cobertura, F1, indevidos, atributos, contexto recuperado e tokens → `resultados/resultados.csv`
 
 ## Sprint 2 — multiagente + RAG
 

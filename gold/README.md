@@ -4,9 +4,7 @@ Gabarito feito à mão do que o sistema **deveria** extrair de recortes pequenos
 dos livros. É a régua de todos os experimentos: baseline × multiagente,
 Gemini × Claude, com e sem busca de contexto.
 
-> **Status: rascunho.** Anotado a partir do texto extraído das páginas.
-> Precisa ser conferido por uma pessoa com o livro aberto antes de valer como
-> gabarito (veja a lista de conferência no fim).
+> **Status: conferido** no revisor visual (117 de 118 linhas; falta a página negativa do Prefácio do D&D).
 
 ## Arquivos
 
@@ -67,4 +65,4 @@ Para cada recorte, com a página aberta:
 3. Os `descricao_contem` aparecem de fato no texto?
 4. Marque no fim desta página: `Conferido por: <nome>, <data>`.
 
-Conferido por: —
+Conferido por: Kevin Ryan, 06/11/2026

@@ -6,6 +6,8 @@
     banco                    categorias, atributos e entradas registrados
     demo                     cria um banco de exemplo (ritual x magia) para ver as views
     revisar                  revisor visual do gabarito e das saídas (abre no navegador)
+    extrair [--livro X]      roda o baseline (ou outra estratégia) nos recortes e avalia
+    avaliar --livro --saida  compara uma saída com o gold set
 """
 
 from __future__ import annotations
@@ -122,6 +124,54 @@ def cmd_demo(args) -> int:
     return 0
 
 
+def _livros(raiz: Path, escolha: str) -> list[str]:
+    todos = list(json.loads((raiz / "gold" / "recortes.json").read_text(encoding="utf-8"))["livros"])
+    if escolha == "todos":
+        return todos
+    if escolha not in todos:
+        raise SystemExit(f"livro desconhecido: {escolha} (use {', '.join(todos)} ou todos)")
+    return [escolha]
+
+
+def cmd_extrair(args) -> int:
+    from . import experimento
+
+    raiz = Path.cwd()
+    cfg = config_mod.carregar(provedor=args.provedor)
+    for livro in _livros(raiz, args.livro):
+        print(f"\n{livro}: {args.estrategia} com {cfg.provedor} ({experimento.resolver_modelo(cfg, args.modelo)})")
+
+        def progresso(i, total, n):
+            print(f"\r  página {i}/{total} · {n} entradas", end="", flush=True)
+
+        saida, meta = experimento.rodar(raiz, livro, cfg, estrategia=args.estrategia, papel=args.modelo,
+                                        ao_progresso=progresso)
+        print(f"\n  saída: {saida.relative_to(raiz)}")
+        if not args.sem_avaliar:
+            metricas = experimento.avaliar(raiz, livro, saida)
+            experimento.registrar(raiz, meta, metricas, saida)
+            print(experimento.formatar(meta, metricas))
+    if not args.sem_avaliar:
+        print("\nresultados registrados em resultados/resultados.csv — veja os detalhes em `compendio revisar`")
+    return 0
+
+
+def cmd_avaliar(args) -> int:
+    from . import experimento
+
+    raiz = Path.cwd()
+    saida = Path(args.saida).resolve()
+    meta_arq = saida.with_suffix(".meta.json")
+    meta = json.loads(meta_arq.read_text(encoding="utf-8")) if meta_arq.exists() else {
+        "livro": args.livro, "estrategia": "?", "provedor": "?", "modelos": "?", "chamadas": 0,
+        "tokens_entrada": 0, "tokens_saida": 0, "segundos": 0}
+    metricas = experimento.avaliar(raiz, args.livro, saida)
+    print(experimento.formatar({**meta, "livro": args.livro}, metricas))
+    if args.registrar:
+        experimento.registrar(raiz, {**meta, "livro": args.livro}, metricas, saida)
+    return 0
+
+
 def cmd_revisar(args) -> int:
     from .revisor import rodar
 
@@ -156,6 +206,20 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("demo")
     s.add_argument("--banco")
     s.set_defaults(f=cmd_demo)
+
+    s = sub.add_parser("extrair", help="roda uma estratégia de extração nos recortes do gold set e avalia")
+    s.add_argument("--livro", default="todos", help="chave em gold/recortes.json, ou 'todos'")
+    s.add_argument("--estrategia", default="baseline", choices=["baseline"])
+    s.add_argument("--provedor", choices=["gemini", "claude"], help="sobrescreve COMPENDIO_PROVEDOR")
+    s.add_argument("--modelo", default="rapido", help="rapido, forte ou o nome de um modelo")
+    s.add_argument("--sem-avaliar", action="store_true")
+    s.set_defaults(f=cmd_extrair)
+
+    s = sub.add_parser("avaliar", help="compara uma saída .jsonl com o gold set")
+    s.add_argument("--livro", required=True)
+    s.add_argument("--saida", required=True)
+    s.add_argument("--registrar", action="store_true", help="adiciona a linha em resultados/resultados.csv")
+    s.set_defaults(f=cmd_avaliar)
 
     s = sub.add_parser("revisar", help="abre o revisor visual do gabarito e das saídas no navegador")
     s.add_argument("--porta", type=int, default=8765)
