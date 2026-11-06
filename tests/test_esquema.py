@@ -116,3 +116,31 @@ def test_estrategia_completa_no_projeto(tmp_path):
 
     m = experimento.avaliar(tmp_path, "ordem-paranormal", saida)
     assert m["acertos"] == 2 and m["sobraram"] == 0
+
+
+def test_mapeador_forte_tem_o_rapido_como_ultimo_recurso_e_avisa_o_que_faz(tmp_path):
+    shutil.copytree(RAIZ / "gold", tmp_path / "gold")
+
+    class Doc:
+        page_count = 330
+
+        def page_text_raw(self, p):
+            return f"{p + 1}\nconteúdo"
+
+    class Lento(GeminiFalso):
+        def generate_content(self, **kw):
+            if kw["model"] == "forte":
+                raise RuntimeError("504 DEADLINE_EXCEEDED")
+            return super().generate_content(**kw)
+
+    eventos = []
+    llm = GeminiLLM(cfg(), cliente=Lento(), dormir=lambda s: None)
+    saida, meta = experimento.rodar(tmp_path, "ordem-paranormal", cfg(), estrategia="esquema", papel_mapeador="forte",
+                                    llm=llm, abrir_pdf=lambda c: Doc(), ao_evento=eventos.append)
+    assert "mapeador_forte" in saida.name
+    assert meta["modelos"] == "rapido"  # o forte nunca respondeu; o rápido segurou
+    assert "mapeando p.133–134…" in eventos
+    assert "p.133–134: Ritual (5 campos)" in eventos
+    assert "p.304: sem conteúdo mecânico — não extrai" in eventos
+    # timeout não repete no mesmo modelo: 1 tentativa no forte por recorte
+    assert sum(1 for u in llm.registro.chamadas if u.etapa == "mapeador") == 5

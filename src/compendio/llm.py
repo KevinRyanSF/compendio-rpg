@@ -127,6 +127,12 @@ def schema_para_gemini(modelo: type[BaseModel] | dict) -> dict:
 
 # ------------------------------------------------------------- base
 
+def _e_demora(erro: Exception) -> bool:
+    """Timeout/prazo estourado: repetir no mesmo modelo costuma demorar de novo."""
+    texto = f"{type(erro).__name__} {erro}".lower()
+    return any(s in texto for s in ("504", "deadline_exceeded", "deadline expired", "timeout", "timed out"))
+
+
 def _e_limite_de_taxa(erro: Exception) -> bool:
     texto = f"{type(erro).__name__} {erro}".lower()
     sinais = ("429", "resource_exhausted", "rate limit", "ratelimit", "overloaded", "503", "unavailable",
@@ -155,8 +161,8 @@ class LLM:
             try:
                 return chamada(), tentativa
             except Exception as erro:  # noqa: BLE001 - cada SDK tem sua classe de erro
-                if tentativa == self.max_tentativas or not _e_limite_de_taxa(erro):
-                    raise
+                if tentativa == self.max_tentativas or not _e_limite_de_taxa(erro) or _e_demora(erro):
+                    raise  # timeout vai direto para o próximo modelo da cadeia
                 self._dormir(espera)
                 espera = min(espera * 2, 60)
         raise AssertionError("inalcançável")
@@ -170,7 +176,7 @@ class LLM:
                 resultado, tentativas = self._com_retentativas(lambda: fazer(modelo))
                 return resultado, total + tentativas
             except Exception as erro:  # noqa: BLE001
-                total += self.max_tentativas
+                total += 1 if _e_demora(erro) else self.max_tentativas
                 if i == len(cadeia) - 1 or not _e_limite_de_taxa(erro):
                     raise
         raise ValueError("nenhum modelo informado")

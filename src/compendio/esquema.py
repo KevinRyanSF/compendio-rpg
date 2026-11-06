@@ -200,12 +200,18 @@ def _blocos(paginas: dict[int, str]) -> list[list[int]]:
 
 def extrair(llm: LLM, paginas: dict[int, str], *, sistema: str, modelo: str | None = None,
             modelo_mapeador: str | None = None, banco=None,
-            ao_progresso: Callable[[int, int, int], None] | None = None) -> list[dict]:
+            ao_progresso: Callable[[int, int, int], None] | None = None,
+            ao_evento: Callable[[str], None] | None = None) -> list[dict]:
     brutas: list[dict] = []
     feitas = 0
+    avisar = ao_evento or (lambda _m: None)
     for bloco in _blocos(paginas):
         amostra = "\n\n".join(f"[Página {p}]\n{paginas[p]}" for p in bloco if paginas[p].strip())
+        faixa = f"p.{bloco[0]}" + (f"–{bloco[-1]}" if len(bloco) > 1 else "")
+        avisar(f"mapeando {faixa}…")
         categorias = descobrir(llm, amostra, sistema=sistema, modelo=modelo_mapeador) if amostra else []
+        avisar(f"{faixa}: " + (", ".join(f"{c.nome} ({len(c.atributos)} campos)" for c in categorias)
+                               or "sem conteúdo mecânico — não extrai"))
         if banco is not None:
             categorias = [banco.registrar_categoria(c)[0] for c in categorias]
         for p in bloco:

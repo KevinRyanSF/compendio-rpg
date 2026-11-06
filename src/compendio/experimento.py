@@ -36,8 +36,9 @@ def resolver_modelo(cfg: Config, papel: str) -> str:
 
 
 def rodar(raiz: Path, livro: str, cfg: Config, *, estrategia: str = "baseline", papel: str = "rapido",
-          llm: LLM | None = None, abrir_pdf: Callable = _abrir_pdf_padrao,
-          ao_progresso: Callable[[int, int, int], None] | None = None) -> tuple[Path, dict]:
+          papel_mapeador: str = "rapido", llm: LLM | None = None, abrir_pdf: Callable = _abrir_pdf_padrao,
+          ao_progresso: Callable[[int, int, int], None] | None = None,
+          ao_evento: Callable[[str], None] | None = None) -> tuple[Path, dict]:
     projeto = Projeto(raiz, abrir_pdf)
     info = projeto.livro(livro)
     paginas = {p: projeto.texto(livro, p) for p in sorted(projeto.paginas_do_recorte(livro))}
@@ -45,11 +46,17 @@ def rodar(raiz: Path, livro: str, cfg: Config, *, estrategia: str = "baseline", 
     inicio, ja = time.perf_counter(), len(llm.registro.chamadas)
 
     nome = f"{estrategia}-{cfg.provedor}-{papel}-{livro}"
+    if estrategia != "baseline" and papel_mapeador != "rapido":
+        nome = f"{estrategia}-{cfg.provedor}-{papel}-mapeador_{papel_mapeador}-{livro}"
     fn = ESTRATEGIAS[estrategia]
     extras: dict[str, Any] = {}
     parametros = inspect.signature(fn).parameters
     if "modelo_mapeador" in parametros:
-        extras["modelo_mapeador"] = cfg.modelo_forte
+        # forte primeiro (se pedido), rápido como último recurso: o Mapeador nunca trava a execução
+        cadeia = [resolver_modelo(cfg, papel_mapeador), cfg.modelo_rapido]
+        extras["modelo_mapeador"] = ",".join(dict.fromkeys(m for c in cadeia for m in c.split(",")))
+    if "ao_evento" in parametros and ao_evento:
+        extras["ao_evento"] = ao_evento
     banco = None
     if "banco" in parametros:  # estratégias com esquema gravam o compêndio de verdade
         from .storage import Banco

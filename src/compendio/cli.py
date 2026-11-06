@@ -147,7 +147,8 @@ def cmd_extrair(args) -> int:
 
         try:
             saida, meta = experimento.rodar(raiz, livro, cfg, estrategia=args.estrategia, papel=args.modelo,
-                                            ao_progresso=progresso)
+                                            papel_mapeador=args.mapeador, ao_progresso=progresso,
+                                            ao_evento=lambda msg: print(f"\n  {msg}", end="", flush=True))
         except Exception as erro:  # noqa: BLE001 - registra e segue para o próximo livro
             print(f"\n  FALHOU: {type(erro).__name__}: {str(erro)[:300]}")
             continue
@@ -222,6 +223,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="baseline (1 LLM por página) ou esquema (Mapeador descobre o esquema + Especialista)")
     s.add_argument("--provedor", choices=["gemini", "claude"], help="sobrescreve COMPENDIO_PROVEDOR")
     s.add_argument("--modelo", default="rapido", help="rapido, forte ou o nome de um modelo")
+    s.add_argument("--mapeador", default="rapido",
+                   help="modelo do Mapeador na estratégia esquema: rapido (padrão), forte ou um nome")
     s.add_argument("--sem-avaliar", action="store_true")
     s.set_defaults(f=cmd_extrair)
 
