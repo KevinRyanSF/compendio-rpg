@@ -23,11 +23,11 @@ dev = ["pytest>=8.0"]
 [project.scripts]
 compendio = "compendio.cli:main"
 
-# Enquanto o pdfscope não estiver publicado, ele vem da pasta irmã.
-# Quando o repositório do pdfscope estiver no GitHub (público), troque por:
-#   pdfscope = { git = "https://github.com/KevinRyanSF/pdfscope" }
+# O pdfscope vem do GitHub, então qualquer pessoa instala com `uv sync`.
+# Para desenvolver o pdfscope junto (pasta irmã), troque temporariamente por:
+#   pdfscope = { path = "../pdfscope", editable = true }
 [tool.uv.sources]
-pdfscope = { path = "../pdfscope", editable = true }
+pdfscope = { git = "https://github.com/KevinRyanSF/pdfscope" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

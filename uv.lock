@@ -302,7 +302,7 @@ dev = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.40" },
     { name = "google-genai", specifier = ">=1.30" },
-    { name = "pdfscope", editable = "../pdfscope" },
+    { name = "pdfscope", git = "https://github.com/KevinRyanSF/pdfscope" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "python-dotenv", specifier = ">=1.0" },
 ]
@@ -740,20 +740,10 @@ wheels = [
 [[package]]
 name = "pdfscope"
 version = "0.2.0"
-source = { editable = "../pdfscope" }
+source = { git = "https://github.com/KevinRyanSF/pdfscope#324f7ec8c5cc586674bf8d3852d6ebd06f339d09" }
 dependencies = [
     { name = "pymupdf" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "pymupdf", specifier = ">=1.24" },
-    { name = "pyqt6", marker = "extra == 'dev'", specifier = ">=6.6" },
-    { name = "pyqt6", marker = "extra == 'qt'", specifier = ">=6.6" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-qt", marker = "extra == 'dev'", specifier = ">=4.4" },
-]
-provides-extras = ["qt", "dev"]
 
 [[package]]
 name = "pluggy"

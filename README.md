@@ -10,7 +10,7 @@ Pensado para virar uma ferramenta do VTT **RPG Master Suite**.
 ## Ideia central
 
 1. **O índice do livro guia tudo.** O PDF é quebrado por seção do índice (via
-   [pdfscope](../pdfscope)); o Mapeador lê só o índice (poucas centenas de
+   [pdfscope](https://github.com/KevinRyanSF/pdfscope)); o Mapeador lê só o índice (poucas centenas de
    tokens) para decidir o que vai para cada especialista.
 2. **O esquema é descoberto, não escrito à mão.** Ao achar os rituais do Ordem
    Paranormal, o sistema registra a categoria *Ritual* com seus atributos
@@ -38,11 +38,12 @@ PDF ─► pdfscope (índice + texto + busca)
 
 ## Instalação (Windows, PyCharm ou terminal)
 
-Pré-requisitos: Python 3.12 e [uv](https://docs.astral.sh/uv/). As pastas
-`pdfscope` e `compendio-rpg` precisam estar lado a lado.
+Pré-requisitos: Python 3.12 e [uv](https://docs.astral.sh/uv/). O `uv sync`
+instala o [pdfscope](https://github.com/KevinRyanSF/pdfscope) direto do GitHub.
 
 ```powershell
-cd C:\Users\kevin\PycharmProjects\compendio-rpg
+git clone https://github.com/KevinRyanSF/compendio-rpg.git
+cd compendio-rpg
 uv sync
 copy .env.example .env      # e cole a GEMINI_API_KEY
 uv run compendio verificar --api
