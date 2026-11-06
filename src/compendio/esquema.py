@@ -300,8 +300,14 @@ def _linha_de_titulo(nome: str, texto: str) -> int:
     if not alvo:
         return -1
     achou = -1
-    for i, linha in enumerate(texto.splitlines()):
+    linhas = [l for l in texto.splitlines()]
+    for i, linha in enumerate(linhas):
         n = norm(linha)
+        if not n.startswith(alvo[: max(3, len(alvo) // 2)]) and i + 1 < len(linhas):
+            pass
+        elif i + 1 < len(linhas) and len(n) < len(alvo) and norm(linha + " " + linhas[i + 1]) == alvo:
+            achou = i  # título quebrado em duas linhas ("BANQUETE DE" / "HERÓIS")
+            continue
         if n == alvo or (n.startswith(alvo) and n[len(alvo)] in " .:(—–-" and not n[len(alvo):].strip()[:1].isalpha()):
             achou = i
         elif n.startswith(alvo + " ") and re.match(r"\s+[0-9ivx—–-]", n[len(alvo):]):  # linha de tabela: nome + dados
@@ -324,7 +330,7 @@ def _comeca_no_meio(texto: str, categorias: list[Categoria]) -> bool:
     pulou_cabecalho = False
     for linha in texto.splitlines():
         l = linha.strip()
-        if not l or l.isdigit():
+        if not l or l.isdigit() or len(l) <= 3:  # número de página, letras soltas de aba vertical
             continue
         if l.isupper() and len(l) < 40 and not pulou_cabecalho:  # cabeçalho corrido da página (só um)
             pulou_cabecalho = True
@@ -435,8 +441,12 @@ def extrair_com_revisao(llm: LLM, paginas: dict[int, str], *, sistema: str, mode
                 if not vizinho.strip():
                     continue
                 if nome and not _e_titulo(nome, texto, vizinho):
-                    avisar(f"p.{p}: ignora pedido de contexto para '{nome}' (não é título de entrada)")
-                    continue
+                    if direcao == "anterior":  # o pedido ainda faz sentido: a página começa no meio de algo
+                        avisar(f"p.{p}: '{nome}' não aparece como título — busca a entrada que continua da p.{q}")
+                        nome = ""
+                    else:
+                        avisar(f"p.{p}: ignora pedido de contexto para '{nome}' (não é título de entrada)")
+                        continue
                 cabecalho = "cabecalho" in norm(str(pedido.get("motivo", "")))
                 if direcao == "anterior":
                     combinado = f"[fim da Página {q}]\n{vizinho[-TRECHO_VIZINHO:]}\n\n[Página {p}]\n{texto}"

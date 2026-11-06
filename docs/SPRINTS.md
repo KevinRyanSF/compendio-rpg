@@ -160,6 +160,19 @@ Isso define a Sprint 2 pela evidência, não pela arquitetura desejada:
 - "Armas Táticas": com o fim da p.64 o modelo ainda pôs o subcabeçalho no campo de grupo
   → instrução explícita sobre cabeçalhos em dois níveis.
 
+**Terceira rodada (06/11, 15h50):** Ordem — precisão 100%, cobertura 98%, atributos 88%,
+**contexto 12/14** ("Armas Táticas" vindo da p.64), 9 chamadas, 16 mil tokens de entrada.
+D&D — precisão 100%, cobertura 98%, atributos 96%, contexto 0/1.
+
+⚠️ **Erro de base encontrado aqui**: o filtro achou "BÊNÇÃO" como última magia da p.221 e o detector de
+continuação não disparou na p.319. Causa: `pdfscope.page_text_raw` usava `sort=True`, que ordena os blocos
+por altura e **intercala as duas colunas** das páginas. No ambiente de desenvolvimento os testes usavam
+outro leitor (pypdfium2), que mantém a ordem das colunas, por isso não apareceu antes.
+→ pdfscope 0.4.0 lê na ordem do PDF por padrão. **Todas as rodadas anteriores (inclusive o baseline)
+usaram texto com colunas misturadas** e precisam ser refeitas para a tabela final.
+Também: título quebrado em duas linhas passa a ser reconhecido, e pedido "anterior" com nome que não é
+título vira pedido sem nome (em vez de ser ignorado).
+
 - Correções na régua (valem para todas as estratégias; baseline e esquema não mudaram):
   categoria "I" guardada como inteiro 1 agora conta como certa; opcionais aceitam variações de nome
   ("Armas Improvisadas").

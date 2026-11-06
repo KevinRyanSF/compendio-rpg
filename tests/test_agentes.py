@@ -138,3 +138,11 @@ def test_linha_de_titulo():
     assert _comeca_no_meio("223\nComponentes: V, S, M (uma tigela", [magia])
     assert not _comeca_no_meio("291\nAPÊNDICE A: CONDIÇÕES\nS CONDIÇÕES ALTERAM AS CAPACIDADES", [magia])
     assert not _comeca_no_meio("125\nAprimorar Físico\n SANGUE 2", [magia])
+
+
+def test_titulo_quebrado_e_aba_vertical():
+    from compendio.esquema import _comeca_no_meio, _e_titulo
+    assert _e_titulo("Banquete de Heróis", "Alcance: 9 metros\nBANQUETE DE\nHERÓIS\n6° nível de conjuração")
+    assert not _e_titulo("Banquete de Heróis", "o banquete de\nheróis é servido")  # prosa não vira título
+    # aba lateral "CONDIÇÕES" extraída letra por letra antes do texto
+    assert _comeca_no_meio("C\nO\nN\nD\n311\ndada). A descrição do veneno", [])
