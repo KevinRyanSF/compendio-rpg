@@ -90,3 +90,18 @@ def test_jsonl_ida_e_volta(tmp_path):
     chunks = chunks_por_indice(livro())
     caminho = salvar_jsonl(chunks, tmp_path / "c.jsonl")
     assert carregar_jsonl(caminho) == chunks
+
+
+def test_remove_marca_dagua_e_rodape_repetidos():
+    marca = "Fulano de Tal fulano@exemplo.com"
+    paginas = [f"{i + 10}\nConteúdo único da página {i}\nRitual {i}{marca if i % 2 else ''}\n{marca}" for i in range(8)]
+    doc = DocFalso(paginas, [Toc(1, "Tudo", 0)])
+    texto = "\n".join(c.texto for c in chunks_por_indice(doc))
+    assert "fulano@exemplo.com" not in texto
+    assert "Conteúdo único da página 3" in texto
+    assert "Ritual 3" in texto  # a marca colada no fim da linha sai, o conteúdo fica
+
+
+def test_hifen_suave_some():
+    doc = DocFalso(["liga￾mentos e multi­plicador"], [])
+    assert chunks_por_indice(doc)[0].texto == "ligamentos e multiplicador"

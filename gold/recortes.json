@@ -1,0 +1,82 @@
+{
+  "versao": 1,
+  "livros": {
+    "ordem-paranormal": {
+      "arquivo": "Ordem Paranormal v1.2 .pdf",
+      "sistema": "Ordem Paranormal",
+      "gold": "ordem-paranormal.jsonl",
+      "recortes": [
+        {
+          "paginas": [
+            133,
+            134
+          ],
+          "conteudo": "Descrição dos Rituais (11 rituais, um atravessa para a p.135)"
+        },
+        {
+          "paginas": [
+            65,
+            65
+          ],
+          "conteudo": "Tabela 3.3 de armas, continuação (15 armas + 6 munições)"
+        },
+        {
+          "paginas": [
+            319,
+            319
+          ],
+          "conteudo": "Condições (20 completas + final de Envenenado)"
+        },
+        {
+          "paginas": [
+            16,
+            16
+          ],
+          "conteudo": "negativo: texto introdutório"
+        },
+        {
+          "paginas": [
+            304,
+            304
+          ],
+          "conteudo": "negativo: lore de personagens"
+        }
+      ]
+    },
+    "dnd-5e": {
+      "arquivo": "D&D 5 edição.pdf",
+      "sistema": "D&D 5e",
+      "gold": "dnd-5e.jsonl",
+      "recortes": [
+        {
+          "paginas": [
+            221,
+            222
+          ],
+          "conteudo": "Descrição de Magias (8 magias completas + final de Banquete de Heróis)"
+        },
+        {
+          "paginas": [
+            150,
+            150
+          ],
+          "conteudo": "Tabela de armas (37 armas)"
+        },
+        {
+          "paginas": [
+            289,
+            290
+          ],
+          "conteudo": "Apêndice A: Condições (11)"
+        },
+        {
+          "paginas": [
+            3,
+            4
+          ],
+          "conteudo": "negativo: prefácio e exemplo de jogo"
+        }
+      ]
+    }
+  }
+}

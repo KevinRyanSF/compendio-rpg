@@ -53,6 +53,44 @@ class Chunk:
         return " > ".join(self.caminho) + sufixo
 
 
+_HIFEN_SUAVE = str.maketrans({"\ufffe": "", "\u00ad": ""})
+
+
+def linhas_repetidas(doc: DocumentoPdf, *, fracao: float = 0.5, amostra: int = 60) -> set[str]:
+    """Linhas que aparecem em boa parte das páginas: cabeçalhos, rodapés, marcas d'água.
+
+    Elas não carregam conteúdo, gastam tokens em todo trecho e, no caso de marca
+    d'água com dados pessoais, não podem ir para o LLM nem para o banco.
+    """
+    n = doc.page_count
+    if n < 4:
+        return set()
+    passo = max(1, n // amostra)
+    paginas = range(0, n, passo)
+    contagem: dict[str, int] = {}
+    for p in paginas:
+        for linha in {l.strip() for l in doc.page_text_raw(p).splitlines()}:
+            if len(linha) >= 6 and not linha.isdigit():
+                contagem[linha] = contagem.get(linha, 0) + 1
+    limite = max(3, int(len(paginas) * fracao))
+    return {linha for linha, c in contagem.items() if c >= limite}
+
+
+def _limpar(texto: str, remover: set[str]) -> str:
+    texto = texto.translate(_HIFEN_SUAVE)
+    if not remover:
+        return texto
+    linhas = []
+    for linha in texto.splitlines():
+        limpa = linha.strip()
+        for r in remover:  # a marca d'água às vezes vem colada no fim de outra linha
+            if r in limpa:
+                limpa = limpa.replace(r, "").strip()
+        if limpa:
+            linhas.append(limpa)
+    return "\n".join(linhas)
+
+
 def _id(livro: str, caminho: list[str], inicio: int, parte: int) -> str:
     base = f"{livro}|{'>'.join(caminho)}|{inicio}|{parte}"
     return hashlib.sha1(base.encode("utf-8")).hexdigest()[:12]
@@ -106,12 +144,14 @@ def _secoes(doc: DocumentoPdf, paginas_sem_indice: int) -> Iterable[tuple[list[s
 
 
 def chunks_por_indice(
-    doc: DocumentoPdf, *, max_chars: int = 12_000, paginas_sem_indice: int = 4, livro: str | None = None
+    doc: DocumentoPdf, *, max_chars: int = 12_000, paginas_sem_indice: int = 4, livro: str | None = None,
+    limpar_repetidas: bool = True,
 ) -> list[Chunk]:
     livro = livro or doc.title
+    remover = linhas_repetidas(doc) if limpar_repetidas else set()
     chunks: list[Chunk] = []
     for caminho, nivel, ini, fim, agrupa in _secoes(doc, paginas_sem_indice):
-        texto = "\n".join(doc.page_text_raw(p) for p in range(ini, fim)).strip()
+        texto = "\n".join(_limpar(doc.page_text_raw(p), remover) for p in range(ini, fim)).strip()
         if not texto:
             continue
         pedacos = _dividir(texto, max_chars)
