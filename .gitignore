@@ -1,0 +1,28 @@
+# Segredos
+.env
+
+# Livros têm direitos autorais: ficam só na máquina de cada um
+livros/*
+!livros/.gitkeep
+
+# Saídas geradas
+data/*.db
+data/*.db-journal
+data/chunks/
+data/uso/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.venv/
+
+# IDE / sistema
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

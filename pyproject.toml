@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "compendio-rpg"
+version = "0.1.0"
+description = "Sistema multiagente que transforma livros de RPG em compêndios consultáveis."
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Kevin Ryan" }, { name = "Aryel Sousa" }]
+dependencies = [
+    "pdfscope",
+    "google-genai>=1.30",
+    "anthropic>=0.40",
+    "pydantic>=2.7",
+    "python-dotenv>=1.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+compendio = "compendio.cli:main"
+
+# Enquanto o pdfscope não estiver publicado, ele vem da pasta irmã.
+# Quando o repositório do pdfscope estiver no GitHub (público), troque por:
+#   pdfscope = { git = "https://github.com/KevinRyanSF/pdfscope" }
+[tool.uv.sources]
+pdfscope = { path = "../pdfscope", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
