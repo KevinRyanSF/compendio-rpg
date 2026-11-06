@@ -138,6 +138,7 @@ def cmd_extrair(args) -> int:
 
     raiz = Path.cwd()
     cfg = config_mod.carregar(provedor=args.provedor)
+    registrados = 0
     for livro in _livros(raiz, args.livro):
         print(f"\n{livro}: {args.estrategia} com {cfg.provedor} ({experimento.resolver_modelo(cfg, args.modelo)})")
 
@@ -154,8 +155,12 @@ def cmd_extrair(args) -> int:
         if not args.sem_avaliar:
             metricas = experimento.avaliar(raiz, livro, saida)
             experimento.registrar(raiz, meta, metricas, saida)
+            registrados += 1
             print(experimento.formatar(meta, metricas))
-    if not args.sem_avaliar:
+            if meta.get("por_etapa"):
+                for etapa, u in meta["por_etapa"].items():
+                    print(f"    {etapa}: {u['chamadas']} chamadas, {u['entrada']} tokens de entrada, {u['saida']} de saída")
+    if registrados:
         print("\nresultados registrados em resultados/resultados.csv — veja os detalhes em `compendio revisar`")
     return 0
 

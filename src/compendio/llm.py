@@ -130,7 +130,7 @@ def schema_para_gemini(modelo: type[BaseModel] | dict) -> dict:
 def _e_limite_de_taxa(erro: Exception) -> bool:
     texto = f"{type(erro).__name__} {erro}".lower()
     sinais = ("429", "resource_exhausted", "rate limit", "ratelimit", "overloaded", "503", "unavailable",
-              "timeout", "timed out")
+              "504", "deadline_exceeded", "deadline expired", "timeout", "timed out", "500 internal")
     return any(s in texto for s in sinais)
 
 

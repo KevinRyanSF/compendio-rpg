@@ -194,3 +194,12 @@ def test_erro_permanente_nao_passa_para_a_reserva():
         llm.estruturado(etapa="x", instrucoes="i", conteudo="c", schema=modelo_lote(RITUAL_ORDEM),
                         modelo="a,b")
     assert len(falso.chamadas) == 1
+
+
+def test_504_deadline_e_temporario_e_passa_para_o_reserva():
+    falso = GeminiFalso([RuntimeError("504 DEADLINE_EXCEEDED. Deadline expired before operation could complete."),
+                         RESPOSTA])
+    llm = GeminiLLM(cfg("gemini"), cliente=falso, dormir=lambda s: None, max_tentativas=1)
+    r = llm.estruturado(etapa="mapeador", instrucoes="i", conteudo="c", schema=modelo_lote(RITUAL_ORDEM),
+                        modelo="gemini-3.8-flash,gemini-3.6-flash")
+    assert r.uso.modelo == "gemini-3.6-flash"
