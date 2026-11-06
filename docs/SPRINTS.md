@@ -26,9 +26,9 @@ Teste sugerido: gold set pequeno; comparar extração numa passada × versão qu
 ## Sprint 2 — multiagente + RAG
 
 - [ ] 5. Busca híbrida: literal (pdfscope) + semântica + glossário do sistema
-- [~] 6. Mapeador: descoberta de categorias/atributos (`--estrategia esquema`) — implementado, falta rodar
+- [x] 6. Mapeador: descoberta de categorias/atributos (`--estrategia esquema`)
       (roteamento pelo índice fica para quando rodar no livro inteiro)
-- [ ] 7. Especialistas com `buscar_trecho` (o salto agentivo)
+- [~] 7. Agente de contexto com a tool `buscar_pagina` + Revisor de cobertura (`--estrategia agentes`) — falta rodar
 - [ ] 8. Validador com devolução ao especialista
 - [ ] 9. Baseline × multiagente no gold set → tabela de resultados
 
@@ -91,6 +91,36 @@ Isso define a Sprint 2 pela evidência, não pela arquitetura desejada:
 - **Especialista com `buscar_trecho`** → resolve 4.
 - Critério de sucesso: subir "atributos corretos" e "contexto" **sem perder** precisão/cobertura,
   com custo de tokens medido (o baseline custa ~14 mil tokens por livro nos recortes).
+
+## Estratégia "esquema" (Mapeador + Especialista, Gemini rápido nos dois, 06/11)
+
+| livro | estratégia | precisão | cobertura | atributos corretos | outro nome | contexto | chamadas | tokens entrada/saída | tempo |
+|---|---|---|---|---|---|---|---|---|---|
+| Ordem | baseline | 100% | 98% | 68% | +15% | 0/14 | 6 | 6,7 mil / 7,1 mil | 18 s |
+| Ordem | **esquema** | 100% | 94% | **86%** | +5% | 0/14 | 9 | 14,5 mil / 7,0 mil | 23 s |
+| D&D | baseline | 100% | 98% | 57% | +14% | 0/1 | 7 | 9,9 mil / 7,6 mil | 25 s |
+| D&D | **esquema** | 100% | 96% | **95%** | +2% | 0/1 | 9 | 18,6 mil / 9,2 mil | 31 s |
+
+- O esquema descoberto resolve o problema de estrutura: +18 pontos no Ordem, +38 no D&D.
+  Ex.: Arma ganhou `grupo` e `empunhadura` vindos do **cabeçalho** da tabela e `dano` separado de
+  `tipo_dano`; Ritual ganhou `elemento` + `circulo` a partir da **linha sem rótulo** "SANGUE 2".
+- Custo: ~2× tokens de entrada (o Mapeador lê o recorte inteiro uma vez), mesma saída, tempo parecido.
+  Páginas sem conteúdo mecânico (prefácio, lore) não chegam ao Especialista.
+- Perdeu um pouco de cobertura: o Especialista **pulou** entradas (Chamas do Caos, Cicatrização,
+  Exaustão no quadro lateral) → motiva o **Revisor de cobertura**.
+- Contexto continua 0 → motiva o **agente de contexto**.
+- Problemas que ficaram: Zarabatana (dano fixo "1") era recusada pela validação de dados — corrigido;
+  o Mapeador juntou Discente/Verdadeiro em `aprimoramento` (informação certa, granularidade diferente).
+- O modelo forte como Mapeador estourou o prazo (504) no plano grátis; o rápido fez o trabalho bem.
+
+## Estratégia "agentes" (+ Revisor de cobertura + agente de contexto)
+
+- O Especialista passa a devolver também `nomes_na_pagina` (tudo o que viu) e `precisa_de_contexto`
+  (pedidos de página anterior/seguinte, com o motivo).
+- **Revisor de cobertura**: nomes vistos e não extraídos → nova chamada focada só neles.
+- **Agente de contexto**: para cada pedido (máx. 3 por página) o laço executa a tool `buscar_pagina`
+  (qualquer página do livro, já limpa) e chama o Especialista de novo com o trecho vizinho e um foco.
+  Quem decide buscar é o modelo; o código só executa e limita — é o "salto agentivo" da Sprint 0.
 
 ## Decisões
 

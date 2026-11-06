@@ -126,7 +126,7 @@ class Resultado:
         # entradas que dependem de outra página: completas = achadas e com tudo o que estava fora certo
         dependentes = [i for i in self.itens if i.status in ("acerto", "faltou") and (i.gold or {}).get("fora_do_recorte")]
         completas = sum(1 for i in dependentes if i.status == "acerto"
-                        and all(a.bate for a in i.atributos if a.fora_do_recorte))
+                        and all(a.bate or a.chave_obtida for a in i.atributos if a.fora_do_recorte))
         return {
             "acertos": tp, "faltaram": fn, "sobraram": self._conta("sobrou"), "indevidos": self._conta("indevido"),
             "precisao": round(prec, 3), "cobertura": round(cob, 3), "f1": round(f1, 3),

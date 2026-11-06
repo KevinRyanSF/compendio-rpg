@@ -142,17 +142,24 @@ def cmd_extrair(args) -> int:
     for livro in _livros(raiz, args.livro):
         print(f"\n{livro}: {args.estrategia} com {cfg.provedor} ({experimento.resolver_modelo(cfg, args.modelo)})")
 
+        estado = {"linha": False}
+
         def progresso(i, total, n):
-            print(f"\r  página {i}/{total} · {n} entradas", end="", flush=True)
+            print(f"\r  página {i}/{total} · {n} entradas   ", end="", flush=True)
+            estado["linha"] = True
+
+        def evento(msg):
+            print(("\n" if estado["linha"] else "") + f"  {msg}", flush=True)
+            estado["linha"] = False
 
         try:
             saida, meta = experimento.rodar(raiz, livro, cfg, estrategia=args.estrategia, papel=args.modelo,
                                             papel_mapeador=args.mapeador, ao_progresso=progresso,
-                                            ao_evento=lambda msg: print(f"\n  {msg}", end="", flush=True))
+                                            ao_evento=evento)
         except Exception as erro:  # noqa: BLE001 - registra e segue para o próximo livro
             print(f"\n  FALHOU: {type(erro).__name__}: {str(erro)[:300]}")
             continue
-        print(f"\n  saída: {saida.relative_to(raiz)}")
+        print(("\n" if estado["linha"] else "") + f"  saída: {saida.relative_to(raiz)}")
         if not args.sem_avaliar:
             metricas = experimento.avaliar(raiz, livro, saida)
             experimento.registrar(raiz, meta, metricas, saida)
@@ -219,8 +226,9 @@ def main(argv: list[str] | None = None) -> int:
 
     s = sub.add_parser("extrair", help="roda uma estratégia de extração nos recortes do gold set e avalia")
     s.add_argument("--livro", default="todos", help="chave em gold/recortes.json, ou 'todos'")
-    s.add_argument("--estrategia", default="baseline", choices=["baseline", "esquema"],
-                   help="baseline (1 LLM por página) ou esquema (Mapeador descobre o esquema + Especialista)")
+    s.add_argument("--estrategia", default="baseline", choices=["baseline", "esquema", "agentes"],
+                   help="baseline (1 LLM por página), esquema (Mapeador + Especialista) ou agentes "
+                        "(+ Revisor de cobertura e busca de contexto na página vizinha)")
     s.add_argument("--provedor", choices=["gemini", "claude"], help="sobrescreve COMPENDIO_PROVEDOR")
     s.add_argument("--modelo", default="rapido", help="rapido, forte ou o nome de um modelo")
     s.add_argument("--mapeador", default="rapido",

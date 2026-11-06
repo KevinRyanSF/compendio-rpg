@@ -57,3 +57,9 @@ def test_schema_do_lote_vai_sem_refs():
     props = schema["properties"]
     assert {"entradas", "incompletas", "contexto_insuficiente", "buscar"} <= set(props)
     assert "circulo" in props["entradas"]["items"]["properties"]
+
+
+def test_dano_fixo_e_sem_dano_sao_validos():
+    Magia = modelo_entrada(MAGIA_DND)
+    assert Magia(nome="Zarabatana", dados="1").dados == "1"
+    assert Magia(nome="Rede", dados="–").dados is None

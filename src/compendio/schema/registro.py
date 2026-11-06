@@ -16,6 +16,7 @@ guarda, e tudo o mais é derivado.
 
 from __future__ import annotations
 
+import re
 from typing import Annotated, Any, Literal, Optional
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, create_model, field_validator
@@ -32,8 +33,10 @@ RESERVADOS = set(CAMPOS_BASE) | {"id", "categoria_id", "slug", "valores", "livro
 
 
 def _validar_dados(valor: str | None) -> str | None:
-    if valor is None or str(valor).strip() == "":
+    if valor is None or str(valor).strip() in ("", "-", "–", "—"):
         return None
+    if re.fullmatch(r"\s*\d+\s*", str(valor)):  # dano fixo (ex.: zarabatana causa 1)
+        return str(valor).strip()
     expressoes = dados_mod.extrair(str(valor))
     if not expressoes:
         raise ValueError(f"esperava uma expressão de dados (ex.: 2d6+3), veio {valor!r}")

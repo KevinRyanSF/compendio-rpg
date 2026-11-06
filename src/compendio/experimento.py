@@ -24,7 +24,7 @@ from .config import Config
 from .llm import LLM, criar_llm
 from .revisor import Projeto, _abrir_pdf_padrao
 
-ESTRATEGIAS = {"baseline": baseline.extrair, "esquema": esquema.extrair}
+ESTRATEGIAS = {"baseline": baseline.extrair, "esquema": esquema.extrair, "agentes": esquema.extrair_com_revisao}
 
 COLUNAS = ["data", "livro", "estrategia", "provedor", "modelos", "paginas", "chamadas", "tokens_entrada",
            "tokens_saida", "cache_lido", "segundos", "acertos", "faltaram", "sobraram", "indevidos",
@@ -55,6 +55,8 @@ def rodar(raiz: Path, livro: str, cfg: Config, *, estrategia: str = "baseline", 
         # forte primeiro (se pedido), rápido como último recurso: o Mapeador nunca trava a execução
         cadeia = [resolver_modelo(cfg, papel_mapeador), cfg.modelo_rapido]
         extras["modelo_mapeador"] = ",".join(dict.fromkeys(m for c in cadeia for m in c.split(",")))
+    if "buscar_pagina" in parametros:  # a tool do agente de contexto: qualquer página do livro, limpa
+        extras["buscar_pagina"] = lambda q: projeto.texto(livro, q)
     if "ao_evento" in parametros and ao_evento:
         extras["ao_evento"] = ao_evento
     banco = None
