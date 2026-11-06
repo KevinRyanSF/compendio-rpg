@@ -38,12 +38,26 @@ def cmd_verificar(args) -> int:
         print("pdfscope:          NÃO INSTALADO (rode `uv sync`)")
         return 1
     if args.api:
+        import dataclasses
+
         from .llm import criar_llm
 
-        llm = criar_llm(cfg)
-        for modelo in dict.fromkeys([cfg.modelo_rapido, cfg.modelo_forte]):
-            r = llm.texto(etapa="verificar", conteudo="Responda só: ok", modelo=modelo)
-            print(f"{modelo} respondeu: {r.dados['texto'].strip()!r}  ({r.uso.entrada}+{r.uso.saida} tokens)")
+        # no teste, espera pouco e não repete: o objetivo é só saber se cada modelo responde
+        llm = criar_llm(dataclasses.replace(cfg, timeout_s=args.timeout), max_tentativas=1)
+        falhas = 0
+        for papel, modelo in (("rápido", cfg.modelo_rapido), ("forte", cfg.modelo_forte)):
+            print(f"testando {papel} ({modelo})... ", end="", flush=True)
+            try:
+                r = llm.texto(etapa="verificar", conteudo="Responda só: ok", modelo=modelo, max_tokens=1024)
+                print(f"ok — {r.dados['texto'].strip()!r} em {r.uso.segundos:.1f}s "
+                      f"({r.uso.entrada}+{r.uso.saida} tokens)")
+            except Exception as erro:  # noqa: BLE001
+                falhas += 1
+                print(f"FALHOU: {type(erro).__name__}: {str(erro)[:300]}")
+        if falhas:
+            print("\nSe um modelo não existe, não está no seu plano ou está lento, troque o nome em "
+                  "COMPENDIO_MODELO_RAPIDO / COMPENDIO_MODELO_FORTE no .env.")
+            return 1
     return 0 if cfg.api_key else 1
 
 
@@ -113,6 +127,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("verificar")
     s.add_argument("--api", action="store_true", help="faz uma chamada mínima a cada modelo")
     s.add_argument("--provedor", choices=["gemini", "claude"], help="sobrescreve COMPENDIO_PROVEDOR")
+    s.add_argument("--timeout", type=float, default=45.0, help="segundos de espera por modelo no teste")
     s.set_defaults(f=cmd_verificar)
 
     s = sub.add_parser("indice")

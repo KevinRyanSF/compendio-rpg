@@ -32,6 +32,7 @@ class Config:
     max_tokens: int
     banco: Path
     provedor: str = "gemini"
+    timeout_s: float = 120.0  # tempo máximo esperando uma resposta da API
 
     @property
     def nome_da_chave(self) -> str:
@@ -52,4 +53,5 @@ def carregar(env_file: str | os.PathLike | None = ".env", provedor: str | None =
         max_tokens=int(os.getenv("COMPENDIO_MAX_TOKENS", "4096")),
         banco=Path(os.getenv("COMPENDIO_BANCO", "data/compendio.db")),
         provedor=provedor,
+        timeout_s=float(os.getenv("COMPENDIO_TIMEOUT", "120")),
     )

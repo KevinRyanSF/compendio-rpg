@@ -125,7 +125,9 @@ def schema_para_gemini(modelo: type[BaseModel] | dict) -> dict:
 
 def _e_limite_de_taxa(erro: Exception) -> bool:
     texto = f"{type(erro).__name__} {erro}".lower()
-    return any(s in texto for s in ("429", "resource_exhausted", "rate limit", "ratelimit", "overloaded", "503"))
+    sinais = ("429", "resource_exhausted", "rate limit", "ratelimit", "overloaded", "503", "unavailable",
+              "timeout", "timed out")
+    return any(s in texto for s in sinais)
 
 
 class LLM:
@@ -196,7 +198,7 @@ class ClaudeLLM(LLM):
                 raise RuntimeError("ANTHROPIC_API_KEY não configurada (veja .env.example).")
             import anthropic
 
-            cliente = anthropic.Anthropic(api_key=config.api_key)
+            cliente = anthropic.Anthropic(api_key=config.api_key, timeout=config.timeout_s, max_retries=0)
         self._cliente = cliente
 
     def _estruturado(self, etapa, instrucoes, conteudo, schema, nome_tool, descricao_tool, modelo, max_tokens):
@@ -243,7 +245,8 @@ class GeminiLLM(LLM):
                 raise RuntimeError("GEMINI_API_KEY não configurada (veja .env.example).")
             from google import genai
 
-            cliente = genai.Client(api_key=config.api_key)
+            # timeout em milissegundos; sem ele uma resposta lenta trava o programa indefinidamente
+            cliente = genai.Client(api_key=config.api_key, http_options={"timeout": int(config.timeout_s * 1000)})
         self._cliente = cliente
 
     def _estruturado(self, etapa, instrucoes, conteudo, schema, nome_tool, descricao_tool, modelo, max_tokens):

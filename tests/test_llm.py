@@ -142,3 +142,35 @@ def test_config_escolhe_modelos_pelo_provedor(monkeypatch):
 def test_factory():
     assert isinstance(criar_llm(cfg("gemini"), cliente=GeminiFalso([])), GeminiLLM)
     assert isinstance(criar_llm(cfg("claude"), cliente=ClaudeFalso({})), ClaudeLLM)
+
+
+def test_timeout_conta_como_erro_temporario():
+    esperas = []
+    falso = GeminiFalso([TimeoutError("The read operation timed out"), RESPOSTA])
+    llm = GeminiLLM(cfg("gemini"), cliente=falso, dormir=esperas.append, espera_inicial=1)
+    r = llm.estruturado(etapa="x", instrucoes="i", conteudo="c", schema=modelo_lote(RITUAL_ORDEM))
+    assert r.uso.tentativas == 2
+
+
+def test_verificar_mostra_falha_sem_travar(monkeypatch, capsys):
+    from compendio import cli, llm as llm_mod
+
+    class Falso(llm_mod.LLM):
+        def _texto(self, etapa, conteudo, modelo, max_tokens):
+            if modelo == "forte":
+                raise TimeoutError("timed out")
+            return "ok", llm_mod.Uso(etapa=etapa, modelo=modelo, entrada=3, saida=1)
+
+    import sys
+    import types
+
+    monkeypatch.setitem(sys.modules, "pdfscope", types.SimpleNamespace(__version__="teste"))
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    monkeypatch.setenv("COMPENDIO_MODELO_RAPIDO", "rapido")
+    monkeypatch.setenv("COMPENDIO_MODELO_FORTE", "forte")
+    monkeypatch.setattr(llm_mod, "criar_llm", lambda c, **kw: Falso(c, **kw))
+    codigo = cli.main(["verificar", "--api"])
+    saida = capsys.readouterr().out
+    assert codigo == 1
+    assert "testando rápido (rapido)... ok" in saida
+    assert "FALHOU: TimeoutError" in saida
