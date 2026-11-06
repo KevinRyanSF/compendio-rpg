@@ -276,7 +276,41 @@ def extrair(llm: LLM, paginas: dict[int, str], *, sistema: str, modelo: str | No
 # ------------------------------------------------------- estratégia "agentes"
 
 TRECHO_VIZINHO = 5_000  # caracteres da página vizinha mandados junto (fim da anterior / começo da seguinte)
+TRECHO_CABECALHO = 2_500  # fim da página anterior dado como contexto quando o esquema tem campos de cabeçalho
 MAX_PEDIDOS_POR_PAGINA = 3
+
+
+def _posicao(nome: str, texto_norm: str) -> int:
+    from .avaliacao import norm
+
+    return texto_norm.rfind(norm(nome)) if norm(nome) else -1
+
+
+def _filtrar_contexto(novas: list[tuple[Categoria, dict]], *, direcao: str, nome: str, texto: str,
+                      vizinho: str) -> list[tuple[Categoria, dict]]:
+    """O modelo costuma extrair a página vizinha inteira; aqui fica só o que foi pedido.
+
+    - nome dado: só essa entrada;
+    - 'anterior' sem nome: só a entrada cujo título aparece por ÚLTIMO no fim da página anterior
+      (é a que continua na atual);
+    - demais casos: só entradas cujo nome aparece na página atual.
+    """
+    from .avaliacao import norm
+
+    if nome:
+        alvo = norm(nome)
+        return [(c, b) for c, b in novas if norm(b.get("nome", "")) == alvo or alvo in norm(b.get("nome", ""))]
+    if direcao == "anterior":
+        viz = norm(vizinho[-TRECHO_VIZINHO:])
+        com_pos = [(c, b, _posicao(b.get("nome", ""), viz)) for c, b in novas]
+        com_pos = [x for x in com_pos if x[2] >= 0]
+        return [max(com_pos, key=lambda x: x[2])[:2]] if com_pos else []
+    pagina = norm(texto)
+    return [(c, b) for c, b in novas if _posicao(b.get("nome", ""), pagina) >= 0]
+
+
+def _tem_cabecalho(categorias: list[Categoria]) -> bool:
+    return any(a.descricao.startswith("[cabecalho]") for c in categorias for a in c.atributos)
 
 
 def extrair_com_revisao(llm: LLM, paginas: dict[int, str], *, sistema: str, modelo: str | None = None,
@@ -307,7 +341,17 @@ def extrair_com_revisao(llm: LLM, paginas: dict[int, str], *, sistema: str, mode
                 if ao_progresso:
                     ao_progresso(feitas, len(paginas), len(brutas) + len(do_contexto))
                 continue
-            achadas, info = extrair_pagina(llm, texto, p, categorias, sistema=sistema, modelo=modelo, revisao=True)
+            entrada_texto = texto
+            if p == bloco[0] and _tem_cabecalho(categorias) and p > 1:
+                anterior = buscar(p - 1)
+                if anterior.strip():  # o cabeçalho do grupo pode ter ficado na página anterior
+                    entrada_texto = (f"[fim da Página {p - 1} — só contexto de cabeçalhos, não extraia entradas daqui]\n"
+                                     f"{anterior[-TRECHO_CABECALHO:]}\n\n[Página {p}]\n{texto}")
+                    avisar(f"p.{p}: esquema tem campos de cabeçalho — inclui o fim da p.{p - 1} como contexto")
+            achadas, info = extrair_pagina(llm, entrada_texto, p, categorias, sistema=sistema, modelo=modelo,
+                                           revisao=True)
+            if entrada_texto is not texto:
+                achadas = _filtrar_contexto(achadas, direcao="cabecalho", nome="", texto=texto, vizinho="")
             for cat, bruto in achadas:
                 _guardar(brutas, banco, sistema, cat, bruto, (p, p))
 
@@ -322,7 +366,12 @@ def extrair_com_revisao(llm: LLM, paginas: dict[int, str], *, sistema: str, mode
                     _guardar(brutas, banco, sistema, cat, bruto, (p, p))
 
             # Contexto: o Especialista pediu a página vizinha
-            pedidos = info["precisa_de_contexto"][:MAX_PEDIDOS_POR_PAGINA]
+            pedidos = list(info["precisa_de_contexto"])
+            ja_pedidos = {norm(str(x.get("nome", ""))) for x in pedidos}
+            for n in info["incompletas"]:  # o próprio Especialista disse que a entrada está incompleta
+                if norm(n) not in ja_pedidos and _posicao(n, norm(texto)) >= 0:
+                    pedidos.append({"nome": n, "direcao": "seguinte", "motivo": "marcada como incompleta"})
+            pedidos = pedidos[:MAX_PEDIDOS_POR_PAGINA]
             vistos: set[tuple[str, str]] = set()
             for pedido in pedidos:
                 direcao, nome = pedido.get("direcao"), limpar(str(pedido.get("nome") or ""))
@@ -348,6 +397,11 @@ def extrair_com_revisao(llm: LLM, paginas: dict[int, str], *, sistema: str, mode
                 avisar(f"p.{p}: busca contexto na p.{q} ({nome or pedido.get('motivo') or 'entrada sem nome'})")
                 novas, _ = extrair_pagina(llm, combinado, p, categorias, sistema=sistema, modelo=modelo,
                                           etapa="contexto", foco=foco)
+                bruto_n = len(novas)
+                novas = _filtrar_contexto(novas, direcao="cabecalho" if cabecalho else direcao, nome=nome,
+                                          texto=texto, vizinho=vizinho)
+                avisar(f"p.{p}: contexto trouxe " + (", ".join(b.get("nome", "?") for _, b in novas) or "nada")
+                       + (f" (descartou {bruto_n - len(novas)} de fora do pedido)" if bruto_n > len(novas) else ""))
                 for cat, bruto in novas:
                     _guardar(do_contexto, banco, sistema, cat, bruto, faixa if not cabecalho else (p, p))
             if ao_progresso:

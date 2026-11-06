@@ -67,6 +67,9 @@ def _como_lista(valor: Any) -> list:
     return list(valor) if isinstance(valor, (list, tuple, set)) else [valor]
 
 
+_ROMANOS = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5, "vi": 6, "vii": 7, "viii": 8, "ix": 9, "x": 10}
+
+
 def valores_batem(esperado: Any, obtido: Any) -> bool:
     if obtido is None:
         return False
@@ -76,6 +79,8 @@ def valores_batem(esperado: Any, obtido: Any) -> bool:
         texto = " | ".join(norm(v) for v in _como_lista(obtido))
         return all(norm(e) in texto for e in esperado)
     ne, no = norm(esperado), " | ".join(norm(v) for v in _como_lista(obtido))
+    if ne in _ROMANOS and no.isdigit():  # categoria "II" guardada como 2
+        return _ROMANOS[ne] == int(no)
     if not ne:
         return no in ("", "-", "—", "–")
     if ne == no or any(v in no or v in no.replace(" ", "") for v in variantes(ne)):
@@ -150,7 +155,7 @@ def _paginas(d: dict) -> set[int]:
 
 def comparar(gold: list[dict], saida: list[dict], paginas_do_recorte: set[int] | None = None) -> Resultado:
     entradas = [g for g in gold if g.get("tipo", "entrada") == "entrada"]
-    opcionais = {norm(g["nome"]) for g in gold if g.get("tipo") == "opcional"}
+    opcionais = {norm(n) for g in gold if g.get("tipo") == "opcional" for n in [g["nome"], *g.get("aliases", [])]}
     negativas: set[int] = set().union(*[_paginas(g) for g in gold if g.get("tipo") == "negativo"] or [set()])
     if paginas_do_recorte is None:
         paginas_do_recorte = set().union(*[_paginas(g) for g in gold] or [set()])

@@ -122,6 +122,27 @@ Isso define a Sprint 2 pela evidência, não pela arquitetura desejada:
   (qualquer página do livro, já limpa) e chama o Especialista de novo com o trecho vizinho e um foco.
   Quem decide buscar é o modelo; o código só executa e limita — é o "salto agentivo" da Sprint 0.
 
+**Primeira rodada (06/11):**
+
+| livro | precisão | cobertura | F1 | atributos | contexto | chamadas | tokens entrada/saída | tempo |
+|---|---|---|---|---|---|---|---|---|
+| Ordem | 79% | **100%** | 88% | 84% | 1/14 | 12 | 19,9 mil / 8,3 mil | 28 s |
+| D&D | **100%** | **100%** | **100%** | 95% | 0/1 | 14 | 30,5 mil / 12,1 mil | 48 s |
+
+- O **Revisor de cobertura** funcionou: recuperou as entradas puladas (Exaustão no quadro lateral,
+  as condições do Ordem, Banquete de Heróis) → cobertura 100% nos dois livros.
+- O **agente de contexto** pediu a página certa (p.318 para Envenenado, p.220 para Banquete), mas o
+  modelo extraiu a página vizinha **inteira**: 14 condições da p.318 entraram como sobra (precisão 79%).
+  → o controle agora **filtra** a resposta: com nome pedido, só ela; "anterior" sem nome, só a entrada
+  cujo título aparece por último na página anterior; nos demais casos, só o que aparece na página atual.
+- O modelo só pediu contexto quando a página começa no meio de uma entrada; não pediu para o cabeçalho
+  "Armas Táticas" (p.64) nem para Compreensão Paranormal, que ele mesmo marcou como incompleta.
+  → gatilhos determinísticos: `incompletas` viram pedido da página seguinte; categoria com campos de
+  cabeçalho recebe o fim da página anterior como contexto na primeira página do recorte.
+- Correções na régua (valem para todas as estratégias; baseline e esquema não mudaram):
+  categoria "I" guardada como inteiro 1 agora conta como certa; opcionais aceitam variações de nome
+  ("Armas Improvisadas").
+
 ## Decisões
 
 | decisão | motivo |

@@ -68,3 +68,10 @@ def test_salvar_jsonl_e_ler(tmp_path):
     avaliacao.salvar_jsonl(linhas, tmp_path / "g.jsonl")
     assert avaliacao.ler_jsonl(tmp_path / "g.jsonl") == linhas
     assert json.loads((tmp_path / "g.jsonl").read_text(encoding="utf-8").splitlines()[0])["nome"] == "Ação"
+
+
+def test_numeral_romano_e_aliases_de_opcional():
+    assert avaliacao.valores_batem("II", 2) and not avaliacao.valores_batem("II", 3)
+    gold = [{"tipo": "opcional", "nome": "Arma improvisada", "aliases": ["Armas improvisadas"], "paginas": [65, 65]}]
+    r = avaliacao.comparar(gold, [{"nome": "Armas Improvisadas", "paginas": [65, 65]}])
+    assert r.itens[0].status == "opcional"
