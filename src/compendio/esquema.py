@@ -308,8 +308,10 @@ def _linha_de_titulo(nome: str, texto: str) -> int:
         elif i + 1 < len(linhas) and len(n) < len(alvo) and norm(linha + " " + linhas[i + 1]) == alvo:
             achou = i  # título quebrado em duas linhas ("BANQUETE DE" / "HERÓIS")
             continue
-        if n == alvo or (n.startswith(alvo) and n[len(alvo)] in " .:(—–-" and not n[len(alvo):].strip()[:1].isalpha()):
-            achou = i
+        resto = n[len(alvo):] if n.startswith(alvo) else None
+        if resto is not None and (resto == "" or resto[0] in ".:(" or
+                                  (resto[0] in " —–-" and (len(resto) < 2 or not resto[1].isalpha()))):
+            achou = i  # "Esmorecido. …", "Acha — …"; mas não "Lança-chamas" para "Lança"
         elif n.startswith(alvo + " ") and re.match(r"\s+[0-9ivx—–-]", n[len(alvo):]):  # linha de tabela: nome + dados
             achou = i
     return achou

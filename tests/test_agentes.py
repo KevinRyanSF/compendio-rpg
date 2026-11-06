@@ -146,3 +146,11 @@ def test_titulo_quebrado_e_aba_vertical():
     assert not _e_titulo("Banquete de Heróis", "o banquete de\nheróis é servido")  # prosa não vira título
     # aba lateral "CONDIÇÕES" extraída letra por letra antes do texto
     assert _comeca_no_meio("C\nO\nN\nD\n311\ndada). A descrição do veneno", [])
+
+
+def test_palavra_composta_nao_e_o_mesmo_titulo():
+    from compendio.esquema import _e_titulo
+    tabela = "Lança-chamas III 6d6 x2 Curto Fogo 2\nLança de Montaria 10 po 1d12"
+    assert not _e_titulo("Lança", tabela)
+    assert _e_titulo("Lança-chamas", tabela) and _e_titulo("Lança de Montaria", tabela)
+    assert _e_titulo("Lança", "Lança 1 po 1d6 perfurante")

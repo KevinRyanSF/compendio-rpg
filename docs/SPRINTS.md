@@ -20,7 +20,7 @@ Teste sugerido: gold set pequeno; comparar extração numa passada × versão qu
 - [x] (extra) Banco com categorias/atributos dinâmicos e camada canônica
 - [x] 2. Gold set em `gold/` (Ordem: 53 entradas, D&D: 57, + opcionais e páginas negativas), conferido no revisor visual
 - [x] (extra) Revisor visual do gabarito e das saídas (`compendio revisar`)
-- [~] 3. Baseline: 1 LLM, uma chamada por página, saída estruturada (`compendio extrair`) — falta rodar
+- [x] 3. Baseline: 1 LLM, uma chamada por página, saída estruturada (`compendio extrair`)
 - [x] 4. Avaliação: precisão, cobertura, F1, indevidos, atributos, contexto recuperado e tokens → `resultados/resultados.csv`
 
 ## Sprint 2 — multiagente + RAG
@@ -28,9 +28,9 @@ Teste sugerido: gold set pequeno; comparar extração numa passada × versão qu
 - [ ] 5. Busca híbrida: literal (pdfscope) + semântica + glossário do sistema
 - [x] 6. Mapeador: descoberta de categorias/atributos (`--estrategia esquema`)
       (roteamento pelo índice fica para quando rodar no livro inteiro)
-- [~] 7. Agente de contexto com a tool `buscar_pagina` + Revisor de cobertura (`--estrategia agentes`) — falta rodar
-- [ ] 8. Validador com devolução ao especialista
-- [ ] 9. Baseline × multiagente no gold set → tabela de resultados
+- [x] 7. Agente de contexto com a tool `buscar_pagina` + Revisor de cobertura (`--estrategia agentes`)
+- [~] 8. Validação: tipos do esquema (Pydantic) + regra de título + filtro do contexto; devolução ao especialista via Revisor
+- [x] 9. Baseline × multiagente no gold set → tabela de resultados (abaixo)
 
 ## Achados ao ingerir os livros reais
 
@@ -177,6 +177,41 @@ título vira pedido sem nome (em vez de ser ignorado).
   categoria "I" guardada como inteiro 1 agora conta como certa; opcionais aceitam variações de nome
   ("Armas Improvisadas").
 
+## Resultado final das Sprints 1–2 (texto na ordem certa, pdfscope 0.4.0, 06/11 ~16h)
+
+Todas com Gemini rápido (`gemini-3.5-flash-lite`, reserva `3.1-flash-lite`), mesmos recortes e mesma régua.
+
+| livro | estratégia | precisão | cobertura | F1 | atributos corretos | contexto | chamadas | tokens entrada / saída |
+|---|---|---|---|---|---|---|---|---|
+| Ordem | baseline | 100% | 98% | 99% | 61% | 0/14 | 6 | 6,6 mil / 7,5 mil |
+| Ordem | esquema | 100% | 96% | 98% | 81% | 0/14 | 9 | 14,7 mil / 7,8 mil |
+| Ordem | **agentes** | 98%¹ | **100%** | 99% | **91%** | **14/14** | 12 | 22,8 mil / 13,3 mil |
+| D&D | baseline | 100% | 98% | 99% | 55% | 0/1 | 7 | 10,4 mil / 8,5 mil |
+| D&D | esquema | 100% | 98% | 99% | 94% | 0/1 | 9 | 19,7 mil / 9,3 mil |
+| D&D | **agentes** | **100%** | **100%** | **100%** | **97%** | **1/1** | 12 | 27,2 mil / 12,2 mil |
+
+¹ a única sobra foi "Lança" (p.64) aceita porque "Lança-chamas" começa com "Lança"; regra de título corrigida depois.
+
+**Leitura:**
+- Detectar entradas o baseline já fazia (F1 99%). O ganho do sistema multiagente está onde o baseline falhava:
+  **estrutura** (atributos: 61→91% no Ordem, 55→97% no D&D) e **contexto** (0→14/14 e 0→1/1).
+- Cada papel tem um efeito mensurável: o **Mapeador** (esquema) dá o salto de atributos; o **Revisor** e o
+  **agente de contexto** fecham cobertura e contexto.
+- Custo: ~3× tokens de entrada e ~1,6× de saída em relação ao baseline (≈36 mil tokens por livro nos recortes),
+  tempo parecido (~37 s). Páginas sem conteúdo mecânico não gastam extração.
+- O que **não** funcionou bem e foi corrigido no caminho: aceitar a resposta do modelo sem filtro (página vizinha
+  inteira), confiar que o modelo pede contexto (precisou de gatilhos determinísticos), aceitar qualquer nome
+  como entrada (regra de título) e — erro de base — ler o PDF com as colunas intercaladas.
+
+**Limitações que permanecem:**
+- Gold set pequeno (2 livros, 110 entradas, 11 páginas) e **uma execução por configuração** — falta medir variância
+  (o modelo não é determinístico; ex.: cobertura do esquema variou 94–96% entre rodadas no Ordem).
+- Avaliado só nos recortes: o sistema ainda não roda no livro inteiro (o Mapeador não roteia pelo índice e o D&D
+  não tem índice — precisa reconstruir pelo sumário impresso).
+- Sem busca semântica/glossário (magia ≈ ritual) — a camada canônica existe, mas a recuperação ainda é por página.
+- Granularidade do esquema varia entre rodadas (ex.: Discente/Verdadeiro juntos em `aprimoramento`).
+- Só Gemini no plano grátis; o modelo forte deu 504 e ficou fora; Claude não foi comparado.
+
 ## Decisões
 
 | decisão | motivo |
@@ -186,4 +221,9 @@ título vira pedido sem nome (em vez de ser ignorado).
 | Camada canônica (`efeito_sobrenatural`, `nivel`, `execucao`…) | magia/ritual, círculo/nível etc. são nomes diferentes para a mesma mecânica |
 | Dados (3d6+2) validados fora do LLM | determinístico, verificável e é o que o VTT precisa para rolar |
 | Saída estruturada (JSON Schema) nos dois provedores | formato garantido e validado pelo Pydantic |
+| Mapeador no modelo rápido | o forte estourou o prazo (504) no plano grátis; o rápido descobriu bons esquemas |
+| Filtro determinístico na resposta do contexto | o modelo extrai a página vizinha inteira se deixar |
+| Gatilhos determinísticos de contexto (continuação, incompletas, cabeçalho) | o modelo nem sempre pede contexto quando precisa |
+| Regra de título (nome no começo da linha) | evita entradas falsas citadas na prosa ("conta brilhante") |
+| Ler o PDF na ordem do arquivo (sem `sort`) | `sort=True` intercala colunas e embaralha o texto |
 | Gemini como padrão, Claude como opção | Gemini tem uso gratuito e é o da disciplina; trocar de provedor permite comparar custo/qualidade no gold set |

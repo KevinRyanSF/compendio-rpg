@@ -10,3 +10,9 @@ data,livro,estrategia,provedor,modelos,paginas,chamadas,tokens_entrada,tokens_sa
 2026-11-06T15:43:30,dnd-5e,agentes,gemini,gemini-3.5-flash-lite,7,15,33858,13544,0,40.3,57,0,1,0,0.983,1.0,0.991,0.955,0.024,1/1,data/saidas/agentes-gemini-rapido-dnd-5e.jsonl
 2026-11-06T15:48:17,ordem-paranormal,agentes,gemini,gemini-3.5-flash-lite,6,9,16060,7555,0,23.8,52,1,0,0,1.0,0.981,0.99,0.881,0.046,12/14,data/saidas/agentes-gemini-rapido-ordem-paranormal.jsonl
 2026-11-06T15:48:50,dnd-5e,agentes,gemini,gemini-3.5-flash-lite,7,10,23119,10655,0,31.4,56,1,0,0,1.0,0.982,0.991,0.96,0.021,0/1,data/saidas/agentes-gemini-rapido-dnd-5e.jsonl
+2026-11-06T15:55:25,ordem-paranormal,baseline,gemini,"gemini-3.1-flash-lite,gemini-3.5-flash-lite",6,6,6570,7454,0,75.3,52,1,0,0,1.0,0.981,0.99,0.606,0.147,0/14,data/saidas/baseline-gemini-rapido-ordem-paranormal.jsonl
+2026-11-06T15:56:43,dnd-5e,baseline,gemini,"gemini-3.1-flash-lite,gemini-3.5-flash-lite",7,7,10365,8494,0,78.1,56,1,0,0,1.0,0.982,0.991,0.55,0.146,0/1,data/saidas/baseline-gemini-rapido-dnd-5e.jsonl
+2026-11-06T15:57:21,ordem-paranormal,esquema,gemini,gemini-3.5-flash-lite,6,9,14676,7762,0,36.1,51,2,0,0,1.0,0.962,0.981,0.81,0.076,0/14,data/saidas/esquema-gemini-rapido-ordem-paranormal.jsonl
+2026-11-06T15:57:54,dnd-5e,esquema,gemini,gemini-3.5-flash-lite,7,9,19707,9257,0,33.2,56,1,0,0,1.0,0.982,0.991,0.945,0.021,0/1,data/saidas/esquema-gemini-rapido-dnd-5e.jsonl
+2026-11-06T15:58:46,ordem-paranormal,agentes,gemini,gemini-3.5-flash-lite,6,12,22839,13312,0,38.4,53,0,1,0,0.981,1.0,0.991,0.913,0.073,14/14,data/saidas/agentes-gemini-rapido-ordem-paranormal.jsonl
+2026-11-06T15:59:23,dnd-5e,agentes,gemini,gemini-3.5-flash-lite,7,12,27160,12172,3233,36.1,57,0,0,0,1.0,1.0,1.0,0.97,0.015,1/1,data/saidas/agentes-gemini-rapido-dnd-5e.jsonl
