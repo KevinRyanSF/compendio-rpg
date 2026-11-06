@@ -5,6 +5,7 @@
     ingerir LIVRO.pdf        gera data/chunks/<livro>.jsonl e o diagnóstico do PDF
     banco                    categorias, atributos e entradas registrados
     demo                     cria um banco de exemplo (ritual x magia) para ver as views
+    revisar                  revisor visual do gabarito e das saídas (abre no navegador)
 """
 
 from __future__ import annotations
@@ -121,6 +122,13 @@ def cmd_demo(args) -> int:
     return 0
 
 
+def cmd_revisar(args) -> int:
+    from .revisor import rodar
+
+    rodar(Path.cwd(), porta=args.porta, abrir_navegador=not args.sem_navegador)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="compendio")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -148,6 +156,11 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("demo")
     s.add_argument("--banco")
     s.set_defaults(f=cmd_demo)
+
+    s = sub.add_parser("revisar", help="abre o revisor visual do gabarito e das saídas no navegador")
+    s.add_argument("--porta", type=int, default=8765)
+    s.add_argument("--sem-navegador", action="store_true")
+    s.set_defaults(f=cmd_revisar)
 
     args = p.parse_args(argv)
     return args.f(args)

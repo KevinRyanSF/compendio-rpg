@@ -10,6 +10,7 @@ data/*.db
 data/*.db-journal
 data/chunks/
 data/uso/
+data/saidas/
 
 # Python
 __pycache__/

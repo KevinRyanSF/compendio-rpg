@@ -15,6 +15,7 @@ Gemini × Claude, com e sem busca de contexto.
 | `recortes.json` | quais páginas de cada livro entram na avaliação |
 | `ordem-paranormal.jsonl` | 53 entradas + 3 opcionais + 2 negativos |
 | `dnd-5e.jsonl` | 57 entradas + 1 opcional + 2 negativos |
+| `exemplos/saida-exemplo-ordem.jsonl` | saída fictícia com erros de propósito, para ver o modo de comparação |
 
 Os PDFs não estão no repositório. O nome do arquivo esperado em `livros/` está em `recortes.json`.
 Páginas são **do PDF, contando a partir de 1** (não o número impresso, que tem deslocamento variável).
@@ -56,7 +57,11 @@ e não só cobertura.
 
 ## Como conferir (Kevin e Aryel)
 
-Para cada recorte, com o PDF aberto na página:
+Use o revisor: `uv run compendio revisar`. Ele mostra a página ao lado das entradas e marca
+com **!** os valores que não aparecem literalmente no texto — comece por eles.
+Marque "conferido" em cada entrada revisada (o campo vai para o `.jsonl`).
+
+Para cada recorte, com a página aberta:
 1. Falta alguma entrada? Sobrou alguma que não existe?
 2. Os valores dos atributos batem com o livro (sem corrigir erros do livro, ex.: "Beste Leve")?
 3. Os `descricao_contem` aparecem de fato no texto?

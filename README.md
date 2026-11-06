@@ -59,8 +59,26 @@ uv run pytest
 | `uv run compendio ingerir livros\X.pdf` | gera `data/chunks/X.jsonl` e um diagnóstico do PDF |
 | `uv run compendio demo` | cria `data/demo.db` com um ritual e uma magia de exemplo |
 | `uv run compendio banco` | lista categorias, atributos e entradas do compêndio |
+| `uv run compendio revisar` | abre no navegador o revisor do gabarito e das saídas (veja abaixo) |
 
 Os PDFs ficam em `livros/`, que está no `.gitignore` (direitos autorais).
+
+## Revisor do gabarito e das saídas
+
+`uv run compendio revisar` abre `http://127.0.0.1:8765` (só na sua máquina):
+
+- **Gabarito** — a página do PDF ao lado das entradas daquela página. Cada valor ganha
+  ✓ (aparece no texto da página), ! (não encontrei, conferir) ou · (não dá para verificar).
+  Dá para editar, marcar como conferido, adicionar notas e entradas; **Ctrl+S** salva no `.jsonl`.
+  A aba *Texto extraído* mostra exatamente o que a ingestão manda para o LLM.
+- **Comparar saída** — escolha um `.jsonl` em `data/saidas/` (ou `gold/exemplos/`) e veja
+  acertos, faltas, sobras e conteúdo indevido, com precisão, cobertura, F1 e
+  atributos corretos — os mesmos números do relatório (`src/compendio/avaliacao.py`).
+
+Formato de uma saída: uma entrada por linha, igual às linhas `entrada` do gold
+(`sistema`, `categoria_canonica`, `categoria_no_livro`, `nome`, `paginas`, `atributos`, `descricao`).
+As chaves dos atributos podem ser as do sistema (`circulo`, `tempo_de_conjuracao`): são
+traduzidas para as canônicas na comparação.
 
 ## Estrutura
 
@@ -73,6 +91,8 @@ src/compendio/
   schema/registro.py Categoria/Atributo dinâmicos -> modelo Pydantic -> JSON Schema
   storage/banco.py   SQLite com tabelas fixas + uma view por categoria
   exemplo.py         categorias de exemplo (Ritual/Ordem, Magia/D&D) para demo e testes
+  avaliacao.py       compara saída × gold: precisão, cobertura, F1, atributos, contexto
+  revisor.py/.html   revisor visual local (servidor HTTP da biblioteca padrão)
   cli.py             linha de comando
 ```
 

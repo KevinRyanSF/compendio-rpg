@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revisor do Gabarito</title>
+<style>
+:root {
+  --bg: #f6f5f2; --painel: #ffffff; --borda: #e2dfd8; --texto: #1f1d1a; --suave: #6b665d;
+  --acento: #7a3e16; --acento-bg: #f6e9df;
+  --ok: #2f7d4f; --ok-bg: #e5f3ea; --aviso: #a76100; --aviso-bg: #fdf0db;
+  --erro: #b3261e; --erro-bg: #fbe7e5; --roxo: #6b3fa0; --roxo-bg: #f0e8f9; --cinza-bg: #efede9;
+  --sombra: 0 1px 2px rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171614; --painel: #211f1c; --borda: #36332e; --texto: #ece8e1; --suave: #a29b8f;
+    --acento: #e0a272; --acento-bg: #3a2a1e;
+    --ok: #7fcf9d; --ok-bg: #1d3326; --aviso: #f0b45c; --aviso-bg: #3a2e19;
+    --erro: #f08c84; --erro-bg: #3b1f1d; --roxo: #c3a2ee; --roxo-bg: #2e2440; --cinza-bg: #2a2825;
+    --sombra: none;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--texto); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, select, input, textarea { font: inherit; color: inherit; }
+header { position: sticky; top: 0; z-index: 5; background: var(--painel); border-bottom: 1px solid var(--borda);
+  display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 10px 16px; }
+header h1 { font-size: 15px; margin: 0 8px 0 0; letter-spacing: .2px; }
+.grupo { display: flex; gap: 6px; align-items: center; }
+select, .btn { background: var(--painel); border: 1px solid var(--borda); border-radius: 7px; padding: 5px 10px; cursor: pointer; }
+.btn:hover { border-color: var(--suave); }
+.btn.primario { background: var(--acento); border-color: var(--acento); color: #fff; }
+.btn.primario:disabled { opacity: .45; cursor: default; }
+.btn.mini { padding: 2px 8px; font-size: 12px; }
+.abas { display: inline-flex; border: 1px solid var(--borda); border-radius: 8px; overflow: hidden; }
+.abas button { border: 0; background: transparent; padding: 5px 12px; cursor: pointer; }
+.abas button.ativo { background: var(--acento-bg); color: var(--acento); font-weight: 600; }
+.espaco { flex: 1; }
+#status { color: var(--suave); font-size: 13px; }
+#metricas { display: none; width: 100%; gap: 8px; flex-wrap: wrap; }
+#metricas.visivel { display: flex; }
+.metrica { background: var(--cinza-bg); border-radius: 8px; padding: 4px 10px; font-size: 13px; }
+.metrica b { font-variant-numeric: tabular-nums; }
+main { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; padding: 16px; align-items: start; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } .visor { position: static !important; } }
+.visor { position: sticky; top: 76px; background: var(--painel); border: 1px solid var(--borda); border-radius: 10px; box-shadow: var(--sombra); overflow: hidden; }
+.barra { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--borda); }
+.chip-recorte { border: 1px solid var(--borda); border-radius: 999px; padding: 2px 10px; background: transparent; cursor: pointer; font-size: 12.5px; }
+.chip-recorte.ativo { background: var(--acento-bg); border-color: var(--acento); color: var(--acento); }
+.chip-recorte.neg { border-style: dashed; }
+#pagina-num { min-width: 84px; text-align: center; font-variant-numeric: tabular-nums; }
+.fora-recorte { color: var(--aviso); font-size: 12px; }
+.area-pagina { max-height: calc(100vh - 170px); overflow: auto; background: var(--cinza-bg); }
+.area-pagina img { display: block; max-width: none; margin: 0 auto; }
+.area-pagina pre { margin: 0; padding: 14px 16px; white-space: pre-wrap; width: 100%; font: 12.5px/1.5 ui-monospace, Consolas, monospace; }
+mark { background: #ffe066; color: #000; }
+.aviso-pdf { padding: 24px; color: var(--suave); }
+.lista-topo { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 10px; color: var(--suave); font-size: 13px; }
+.lista-topo label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+.card { background: var(--painel); border: 1px solid var(--borda); border-left: 4px solid var(--borda); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 10px; box-shadow: var(--sombra); }
+.card.conferido { border-left-color: var(--ok); }
+.card.st-acerto { border-left-color: var(--ok); } .card.st-faltou { border-left-color: var(--erro); }
+.card.st-sobrou { border-left-color: var(--aviso); } .card.st-indevido { border-left-color: var(--roxo); }
+.card.st-opcional, .card.st-fora { opacity: .7; }
+.card.foco { outline: 2px solid var(--acento); outline-offset: 1px; }
+.cab { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cab input.nome { font-weight: 650; font-size: 15px; border: 1px solid transparent; border-radius: 6px; padding: 1px 5px; background: transparent; min-width: 120px; flex: 1 1 160px; }
+.cab input.nome:hover, .cab input.nome:focus { border-color: var(--borda); background: var(--bg); outline: none; }
+.nome-fixo { font-weight: 650; font-size: 15px; flex: 1 1 160px; }
+.tag { font-size: 11.5px; border-radius: 999px; padding: 1px 8px; background: var(--cinza-bg); color: var(--suave); white-space: nowrap; }
+.tag.dif { background: var(--aviso-bg); color: var(--aviso); }
+.tag.tipo-negativo { background: var(--roxo-bg); color: var(--roxo); }
+.tag.tipo-opcional { background: var(--cinza-bg); }
+.tag.st { font-weight: 600; }
+.tag.st-acerto { background: var(--ok-bg); color: var(--ok); } .tag.st-faltou { background: var(--erro-bg); color: var(--erro); }
+.tag.st-sobrou { background: var(--aviso-bg); color: var(--aviso); } .tag.st-indevido { background: var(--roxo-bg); color: var(--roxo); }
+.conf { display: inline-flex; gap: 4px; align-items: center; font-size: 12.5px; color: var(--suave); cursor: pointer; margin-left: auto; }
+table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+td, th { padding: 3px 6px; border-top: 1px solid var(--borda); vertical-align: top; text-align: left; }
+th { color: var(--suave); font-weight: 500; font-size: 12px; }
+td.k { color: var(--suave); width: 30%; word-break: break-word; }
+td.v input { width: 100%; border: 1px solid transparent; border-radius: 5px; padding: 1px 5px; background: transparent; }
+td.v input:hover, td.v input:focus { border-color: var(--borda); background: var(--bg); outline: none; }
+td.s { width: 26px; text-align: center; }
+.ic { display: inline-block; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; line-height: 18px; text-align: center; font-weight: 700; }
+.ic.ok { background: var(--ok-bg); color: var(--ok); } .ic.nao { background: var(--aviso-bg); color: var(--aviso); }
+.ic.na { background: var(--cinza-bg); color: var(--suave); } .ic.err { background: var(--erro-bg); color: var(--erro); }
+.contem { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.contem span { font-size: 12px; border-radius: 6px; padding: 1px 7px; background: var(--cinza-bg); }
+.contem span.ok { background: var(--ok-bg); } .contem span.nao { background: var(--aviso-bg); }
+.obs { margin-top: 6px; font-size: 12.5px; color: var(--suave); font-style: italic; }
+.acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.vazio { color: var(--suave); padding: 20px; text-align: center; border: 1px dashed var(--borda); border-radius: 10px; }
+.legenda { font-size: 12px; color: var(--suave); display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.legenda span { display: inline-flex; gap: 4px; align-items: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Revisor do gabarito</h1>
+  <div class="grupo"><select id="sel-livro" aria-label="Livro"></select></div>
+  <div class="abas" role="tablist">
+    <button id="aba-gold" class="ativo">Gabarito</button>
+    <button id="aba-comp">Comparar saída</button>
+  </div>
+  <div class="grupo" id="grupo-saida" hidden><select id="sel-saida" aria-label="Saída"></select></div>
+  <span class="espaco"></span>
+  <span id="status"></span>
+  <button id="btn-salvar" class="btn primario" disabled title="Ctrl+S">Salvar</button>
+  <div id="metricas"></div>
+</header>
+<main>
+  <section class="visor">
+    <div class="barra" id="recortes"></div>
+    <div class="barra">
+      <button class="btn mini" id="pg-ant" title="Página anterior (←)">‹</button>
+      <span id="pagina-num"></span>
+      <button class="btn mini" id="pg-prox" title="Próxima página (→)">›</button>
+      <span id="fora" class="fora-recorte"></span>
+      <span class="espaco"></span>
+      <div class="abas"><button id="v-img" class="ativo">Página</button><button id="v-txt">Texto extraído</button></div>
+      <button class="btn mini" id="zoom-menos" title="Diminuir">−</button>
+      <button class="btn mini" id="zoom-mais" title="Aumentar">+</button>
+      <button class="btn mini" id="limpar-grifo" hidden>limpar grifo</button>
+    </div>
+    <div class="area-pagina" id="area"></div>
+  </section>
+  <section>
+    <div class="lista-topo">
+      <label><input type="radio" name="escopo" value="pagina" checked> desta página</label>
+      <label><input type="radio" name="escopo" value="recorte"> de todo o recorte</label>
+      <label id="lbl-pend"><input type="checkbox" id="so-pend"> só não conferidas</label>
+      <span class="espaco"></span>
+      <span id="contagem"></span>
+    </div>
+    <div class="legenda" id="legenda"></div>
+    <div id="lista"></div>
+    <div class="acoes" id="acoes-lista"></div>
+  </section>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const el = (tag, attrs = {}, ...filhos) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v !== undefined && v !== null && v !== false) e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const f of filhos.flat()) if (f !== null && f !== undefined) e.append(f.nodeType ? f : document.createTextNode(f));
+  return e;
+};
+const guardar = (k, v) => { try { localStorage.setItem("revisor." + k, JSON.stringify(v)); } catch (_) {} };
+const lembrar = (k, d) => { try { const v = localStorage.getItem("revisor." + k); return v === null ? d : JSON.parse(v); } catch (_) { return d; } };
+
+const E = {
+  estado: null, livro: null, linhas: [], verif: [], sujo: false, editadas: new Set(),
+  modo: "gold", saida: null, comparacao: null,
+  pagina: 1, zoom: lembrar("zoom", 1.4), vista: "img", grifo: null, foco: null,
+};
+
+async function api(caminho, opcoes) {
+  const r = await fetch(caminho, opcoes);
+  const j = await r.json();
+  if (!r.ok || j.erro) throw new Error(j.erro || r.statusText);
+  return j;
+}
+function status(msg, tipo) { const s = $("#status"); s.textContent = msg; s.style.color = tipo === "erro" ? "var(--erro)" : ""; }
+
+// ---------------------------------------------------------------- recortes
+const livroAtual = () => E.estado.livros[E.livro];
+const recortes = () => livroAtual().recortes;
+const ehNegativo = (r) => /negativo/i.test(r.conteudo);
+function noRecorte(p) { return recortes().some(r => p >= r.paginas[0] && p <= r.paginas[1]); }
+function recorteDa(p) { return recortes().find(r => p >= r.paginas[0] && p <= r.paginas[1]); }
+const paginas = (d) => { const p = d.paginas || []; return p.length ? [p[0], p[p.length - 1]] : [0, 0]; };
+const tocaPagina = (d, p) => { const [a, b] = paginas(d); return p >= a && p <= b; };
+const tocaRecorte = (d, r) => { const [a, b] = paginas(d); return a <= r.paginas[1] && b >= r.paginas[0]; };
+
+// ------------------------------------------------------------------ início
+async function iniciar() {
+  E.estado = await api("/api/estado");
+  const sel = $("#sel-livro");
+  sel.replaceChildren(...Object.entries(E.estado.livros).map(([k, l]) => el("option", { value: k }, `${l.sistema} — ${l.arquivo}`)));
+  const salvo = lembrar("livro", null);
+  sel.value = salvo && E.estado.livros[salvo] ? salvo : Object.keys(E.estado.livros)[0];
+  const ss = $("#sel-saida");
+  ss.replaceChildren(el("option", { value: "" }, E.estado.saidas.length ? "escolha uma saída…" : "nenhuma saída em data/saidas/"),
+    ...E.estado.saidas.map(s => el("option", { value: s }, s)));
+  await trocarLivro(sel.value);
+}
+
+async function trocarLivro(chave) {
+  if (E.sujo && !confirm("Há alterações não salvas. Trocar de livro mesmo assim?")) { $("#sel-livro").value = E.livro; return; }
+  E.livro = chave; guardar("livro", chave);
+  const j = await api(`/api/gold/${encodeURIComponent(chave)}`);
+  E.linhas = j.linhas; E.verif = j.verificacao; E.sujo = false; E.editadas.clear(); E.comparacao = null;
+  E.pagina = recortes()[0].paginas[0];
+  if (E.modo === "comp" && E.saida) await carregarComparacao();
+  atualizarTudo();
+  status(livroAtual().pdf_existe ? "" : "PDF não encontrado em livros/", livroAtual().pdf_existe ? "" : "erro");
+}
+
+function marcarSujo(i) { E.sujo = true; if (i !== undefined) E.editadas.add(i); $("#btn-salvar").disabled = false; status("alterações não salvas"); }
+
+async function salvar() {
+  if (!E.sujo) return;
+  status("salvando…");
+  try {
+    const j = await api(`/api/gold/${encodeURIComponent(E.livro)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ linhas: E.linhas }) });
+    E.linhas = j.linhas; E.verif = j.verificacao; E.sujo = false; E.editadas.clear();
+    $("#btn-salvar").disabled = true;
+    status("salvo " + new Date().toLocaleTimeString());
+    if (E.modo === "comp" && E.saida) await carregarComparacao();
+    desenharLista();
+  } catch (e) { status("erro ao salvar: " + e.message, "erro"); }
+}
+
+async function carregarComparacao() {
+  if (!E.saida) { E.comparacao = null; return; }
+  try {
+    E.comparacao = await api(`/api/comparar/${encodeURIComponent(E.livro)}?saida=${encodeURIComponent(E.saida)}`);
+  } catch (e) { E.comparacao = null; status("erro na comparação: " + e.message, "erro"); }
+}
+
+// ------------------------------------------------------------------ visor
+function desenharRecortes() {
+  $("#recortes").replaceChildren(...recortes().map(r => el("button", {
+    class: "chip-recorte" + (ehNegativo(r) ? " neg" : "") + (recorteDa(E.pagina) === r ? " ativo" : ""),
+    title: r.conteudo, onclick: () => irPara(r.paginas[0]),
+  }, `p.${r.paginas[0]}${r.paginas[1] !== r.paginas[0] ? "–" + r.paginas[1] : ""} · ${r.conteudo.replace(/\s*\(.*\)$/, "")}`)));
+}
+
+async function desenharPagina() {
+  const l = livroAtual(), area = $("#area");
+  $("#pagina-num").textContent = `p. ${E.pagina}` + (l.paginas_total ? ` / ${l.paginas_total}` : "");
+  $("#fora").textContent = noRecorte(E.pagina) ? "" : "fora do recorte (só contexto)";
+  $("#limpar-grifo").hidden = !E.grifo;
+  if (!l.pdf_existe) { area.replaceChildren(el("div", { class: "aviso-pdf" }, `Coloque "${l.arquivo}" na pasta livros/ para ver as páginas.`)); return; }
+  if (E.vista === "img") {
+    const q = new URLSearchParams({ zoom: E.zoom }); if (E.grifo) q.set("grifo", E.grifo);
+    const img = el("img", { alt: `Página ${E.pagina}`, src: `/api/pagina/${encodeURIComponent(E.livro)}/${E.pagina}.png?${q}` });
+    area.replaceChildren(img);
+  } else {
+    const { texto } = await api(`/api/texto/${encodeURIComponent(E.livro)}/${E.pagina}`);
+    const pre = el("pre");
+    if (E.grifo) {
+      const partes = texto.split(new RegExp(`(${E.grifo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"));
+      partes.forEach((t, i) => pre.append(i % 2 ? el("mark", {}, t) : t));
+    } else pre.textContent = texto || "(página sem texto — provavelmente só imagem)";
+    area.replaceChildren(pre);
+  }
+}
+
+function irPara(p) {
+  const total = livroAtual().paginas_total || 9999;
+  E.pagina = Math.max(1, Math.min(total, p));
+  desenharRecortes(); desenharPagina(); desenharLista();
+}
+function grifar(texto, pagina) { E.grifo = texto; if (pagina) E.pagina = pagina; desenharRecortes(); desenharPagina(); desenharLista(); }
+
+// ------------------------------------------------------------- utilidades
+const icone = (v) => v === true ? el("span", { class: "ic ok", title: "aparece no texto da página" }, "✓")
+  : v === false ? el("span", { class: "ic nao", title: "não encontrei no texto — conferir" }, "!")
+  : el("span", { class: "ic na", title: "não dá para verificar automaticamente" }, "·");
+const mostrar = (v) => v === null || v === undefined ? "" : Array.isArray(v) ? v.join("; ") : typeof v === "object" ? JSON.stringify(v) : String(v);
+function converter(texto, original) {
+  if (Array.isArray(original)) return texto.split(";").map(s => s.trim()).filter(Boolean);
+  if (typeof original === "number") { const n = Number(texto.replace(",", ".")); return Number.isFinite(n) && texto.trim() !== "" ? n : texto; }
+  if (typeof original === "boolean") return /^(sim|true|1|verdadeiro)$/i.test(texto.trim());
+  return texto;
+}
+
+// ------------------------------------------------------------ lista gold
+function cardGold(d, i) {
+  const v = E.editadas.has(i) ? null : E.verif[i];
+  const card = el("article", { class: "card" + (d.conferido ? " conferido" : "") + (E.foco === i ? " foco" : "") });
+  const nome = el("input", { class: "nome", value: d.nome || d.trecho || "", "aria-label": "Nome",
+    oninput: (ev) => { if (d.tipo === "negativo") d.trecho = ev.target.value; else d.nome = ev.target.value; marcarSujo(i); } });
+  const [a, b] = paginas(d);
+  const conf = el("label", { class: "conf" }, el("input", { type: "checkbox", checked: !!d.conferido,
+    onchange: (ev) => { if (ev.target.checked) d.conferido = true; else delete d.conferido; marcarSujo(); card.classList.toggle("conferido", !!d.conferido); atualizarContagem(); } }), "conferido");
+  card.append(el("div", { class: "cab" },
+    v && d.tipo !== "negativo" ? icone(v.nome) : null, nome,
+    d.tipo !== "entrada" ? el("span", { class: "tag tipo-" + d.tipo }, d.tipo) : null,
+    d.categoria_no_livro ? el("span", { class: "tag" }, d.categoria_no_livro) : null,
+    d.dificuldade && d.dificuldade !== "normal" ? el("span", { class: "tag dif" }, d.dificuldade.replace("_", " ")) : null,
+    el("span", { class: "tag" }, a === b ? `p.${a}` : `p.${a}–${b}`),
+    conf));
+
+  if (d.tipo === "entrada") {
+    const linhas = Object.entries(d.atributos || {}).map(([k, val]) => {
+      const fora = (d.fora_do_recorte || []).includes(k);
+      return el("tr", {},
+        el("td", { class: "k" }, k, fora ? el("div", { class: "fora-recorte" }, "fora do recorte") : null),
+        el("td", { class: "v" }, el("input", { value: mostrar(val), "aria-label": k,
+          oninput: (ev) => { d.atributos[k] = converter(ev.target.value, val); marcarSujo(i); } })),
+        el("td", { class: "s" }, v ? icone(v.atributos[k]) : null),
+        el("td", { class: "s" }, el("button", { class: "btn mini", title: "remover atributo",
+          onclick: () => { delete d.atributos[k]; marcarSujo(i); desenharLista(); } }, "×")));
+    });
+    if (linhas.length) card.append(el("table", {}, el("tbody", {}, linhas)));
+    if ((d.descricao_contem || []).length)
+      card.append(el("div", { class: "contem" }, d.descricao_contem.map((c, j) => {
+        const st = v ? v.descricao_contem[j] : null;
+        return el("span", { class: st === true ? "ok" : st === false ? "nao" : "", title: "a descrição deve conter" }, "“" + c + "”");
+      })));
+  }
+  if (d.motivo) card.append(el("div", { class: "obs" }, d.motivo));
+  if (d.obs) card.append(el("div", { class: "obs" }, d.obs));
+  if (E.editadas.has(i)) card.append(el("div", { class: "obs" }, "editado — salve para reverificar no texto"));
+
+  const acoes = el("div", { class: "acoes" },
+    d.tipo !== "negativo" ? el("button", { class: "btn mini", onclick: () => grifar(d.nome, a) }, "grifar na página") : null,
+    d.tipo === "entrada" ? el("button", { class: "btn mini", onclick: () => {
+      const k = prompt("Nome do atributo (ex.: alcance, resistencia, dados):"); if (!k) return;
+      d.atributos = d.atributos || {}; d.atributos[k.trim()] = ""; marcarSujo(i); desenharLista(); } }, "+ atributo") : null,
+    el("button", { class: "btn mini", onclick: () => {
+      const c = prompt("Nota para esta entrada:", d.nota || ""); if (c === null) return;
+      if (c.trim()) d.nota = c.trim(); else delete d.nota; marcarSujo(); desenharLista(); } }, d.nota ? "editar nota" : "nota"),
+    el("button", { class: "btn mini", onclick: () => {
+      if (!confirm(`Excluir "${d.nome || d.trecho}" do gabarito?`)) return;
+      E.linhas.splice(i, 1); E.verif.splice(i, 1); E.editadas = new Set([...E.editadas].filter(x => x !== i).map(x => x > i ? x - 1 : x));
+      marcarSujo(); desenharLista(); } }, "excluir"));
+  if (d.nota) card.append(el("div", { class: "obs" }, "nota: " + d.nota));
+  card.append(acoes);
+  return card;
+}
+
+function novaEntrada() {
+  const vizinha = E.linhas.find(d => d.tipo === "entrada" && tocaPagina(d, E.pagina)) || E.linhas.find(d => d.tipo === "entrada");
+  const nova = { tipo: "entrada", sistema: livroAtual().sistema, livro: vizinha ? vizinha.livro : "",
+    categoria_canonica: vizinha ? vizinha.categoria_canonica : "outro", categoria_no_livro: vizinha ? vizinha.categoria_no_livro : "",
+    nome: "Nova entrada", paginas: [E.pagina, E.pagina], atributos: {}, descricao_contem: [], dificuldade: "normal" };
+  if (vizinha) for (const k of Object.keys(vizinha.atributos || {})) nova.atributos[k] = "";
+  E.linhas.push(nova); E.verif.push(null); E.foco = E.linhas.length - 1; marcarSujo(E.foco); desenharLista();
+}
+
+// ------------------------------------------------------- lista comparação
+function cardComp(it) {
+  const st = it.status;
+  const rotulo = { acerto: "acerto", faltou: "faltou", sobrou: "sobrou (não está no gabarito)", indevido: "indevido (página negativa)", opcional: "opcional", fora: "fora do recorte" }[st];
+  const base = it.gold || it.saida, [a, b] = paginas(base);
+  const card = el("article", { class: "card st-" + st });
+  card.append(el("div", { class: "cab" }, el("span", { class: "nome-fixo" }, it.nome),
+    el("span", { class: "tag st st-" + st }, rotulo),
+    base.categoria_no_livro ? el("span", { class: "tag" }, base.categoria_no_livro) : null,
+    it.categoria_diverge ? el("span", { class: "tag dif", title: `gabarito: ${it.gold.categoria_canonica} · saída: ${it.saida.categoria_canonica}` }, "categoria diverge") : null,
+    el("span", { class: "tag" }, a === b ? `p.${a}` : `p.${a}–${b}`)));
+  if (st === "acerto" && it.atributos.length) {
+    card.append(el("table", {}, el("thead", {}, el("tr", {}, el("th", {}, "atributo"), el("th", {}, "esperado"), el("th", {}, "extraído"), el("th", {}, ""))),
+      el("tbody", {}, it.atributos.map(x => el("tr", {},
+        el("td", { class: "k" }, x.chave, x.fora_do_recorte ? el("div", { class: "fora-recorte" }, "fora do recorte") : null),
+        el("td", {}, mostrar(x.esperado)), el("td", {}, mostrar(x.obtido) || "—"),
+        el("td", { class: "s" }, x.bate ? el("span", { class: "ic ok" }, "✓") : el("span", { class: "ic err" }, "✗")))))));
+  } else if (it.saida && it.saida.atributos && Object.keys(it.saida.atributos).length) {
+    card.append(el("table", {}, el("tbody", {}, Object.entries(it.saida.atributos).map(([k, v]) =>
+      el("tr", {}, el("td", { class: "k" }, k), el("td", {}, mostrar(v)))))));
+  } else if (st === "faltou") {
+    card.append(el("div", { class: "obs" }, "Esperado: " + Object.entries(it.gold.atributos || {}).map(([k, v]) => `${k}: ${mostrar(v)}`).join(" · ")));
+  }
+  if (it.saida && it.saida.descricao) card.append(el("div", { class: "obs" }, it.saida.descricao.slice(0, 280) + (it.saida.descricao.length > 280 ? "…" : "")));
+  card.append(el("div", { class: "acoes" }, el("button", { class: "btn mini", onclick: () => grifar(it.nome, a) }, "grifar na página")));
+  return card;
+}
+
+// --------------------------------------------------------------- desenho
+function escopoAtual() { return document.querySelector("input[name=escopo]:checked").value; }
+function filtro(d) {
+  if (escopoAtual() === "pagina") return tocaPagina(d, E.pagina);
+  const r = recorteDa(E.pagina); return r ? tocaRecorte(d, r) : tocaPagina(d, E.pagina);
+}
+
+function atualizarContagem() {
+  const doLivro = E.linhas.filter(d => d.tipo === "entrada");
+  const conf = E.linhas.filter(d => d.conferido).length;
+  const avisos = E.verif.filter((v, i) => v && E.linhas[i] && (v.nome === false || Object.values(v.atributos).includes(false) || v.descricao_contem.includes(false))).length;
+  $("#contagem").textContent = E.modo === "gold"
+    ? `${doLivro.length} entradas · ${conf}/${E.linhas.length} conferidas · ${avisos} com aviso`
+    : "";
+}
+
+function desenharLista() {
+  const lista = $("#lista");
+  $("#lbl-pend").hidden = E.modo !== "gold";
+  if (E.modo === "gold") {
+    $("#legenda").replaceChildren(el("span", {}, icone(true), "aparece no texto"), el("span", {}, icone(false), "não encontrei — conferir"), el("span", {}, icone(null), "não verificável"));
+    const so = $("#so-pend").checked;
+    const cards = E.linhas.map((d, i) => [d, i]).filter(([d]) => filtro(d) && (!so || !d.conferido)).map(([d, i]) => cardGold(d, i));
+    lista.replaceChildren(...(cards.length ? cards : [el("div", { class: "vazio" }, noRecorte(E.pagina) ? "Nenhuma entrada aqui." : "Página fora do recorte.")]));
+    $("#acoes-lista").replaceChildren(el("button", { class: "btn", onclick: novaEntrada }, `+ entrada na p.${E.pagina}`));
+  } else {
+    $("#legenda").replaceChildren();
+    $("#acoes-lista").replaceChildren();
+    if (!E.saida) { lista.replaceChildren(el("div", { class: "vazio" }, "Escolha uma saída no topo. Saídas são arquivos .jsonl em data/saidas/ (ou gold/exemplos/).")); return; }
+    if (!E.comparacao) { lista.replaceChildren(el("div", { class: "vazio" }, "Carregando…")); return; }
+    const ordem = { faltou: 0, sobrou: 1, indevido: 2, acerto: 3, opcional: 4, fora: 5 };
+    const cards = E.comparacao.itens.filter(it => filtro(it.gold || it.saida)).sort((x, y) => ordem[x.status] - ordem[y.status]).map(cardComp);
+    lista.replaceChildren(...(cards.length ? cards : [el("div", { class: "vazio" }, "Nada nesta página.")]));
+  }
+  atualizarContagem();
+  desenharMetricas();
+}
+
+function desenharMetricas() {
+  const m = $("#metricas");
+  if (E.modo !== "comp" || !E.comparacao) { m.classList.remove("visivel"); return; }
+  const x = E.comparacao.metricas, pct = (v) => v === null || v === undefined ? "—" : Math.round(v * 100) + "%";
+  m.replaceChildren(
+    el("span", { class: "metrica" }, "Precisão ", el("b", {}, pct(x.precisao))),
+    el("span", { class: "metrica" }, "Cobertura ", el("b", {}, pct(x.cobertura))),
+    el("span", { class: "metrica" }, "F1 ", el("b", {}, pct(x.f1))),
+    el("span", { class: "metrica" }, "Atributos corretos ", el("b", {}, pct(x.atributos_corretos))),
+    el("span", { class: "metrica" }, "Contexto recuperado ", el("b", {}, x.contexto_recuperado || "—")),
+    el("span", { class: "metrica" }, `${x.acertos} acertos · ${x.faltaram} faltaram · ${x.sobraram} sobraram · ${x.indevidos} indevidos`));
+  m.classList.add("visivel");
+}
+
+function atualizarTudo() {
+  $("#aba-gold").classList.toggle("ativo", E.modo === "gold");
+  $("#aba-comp").classList.toggle("ativo", E.modo === "comp");
+  $("#grupo-saida").hidden = E.modo !== "comp";
+  $("#btn-salvar").hidden = E.modo !== "gold";
+  desenharRecortes(); desenharPagina(); desenharLista();
+}
+
+// ---------------------------------------------------------------- eventos
+$("#sel-livro").addEventListener("change", (e) => trocarLivro(e.target.value));
+$("#sel-saida").addEventListener("change", async (e) => { E.saida = e.target.value || null; E.comparacao = null; desenharLista(); await carregarComparacao(); desenharLista(); });
+$("#aba-gold").addEventListener("click", () => { E.modo = "gold"; atualizarTudo(); });
+$("#aba-comp").addEventListener("click", async () => { E.modo = "comp"; atualizarTudo(); if (E.saida && !E.comparacao) { await carregarComparacao(); desenharLista(); } });
+$("#btn-salvar").addEventListener("click", salvar);
+$("#pg-ant").addEventListener("click", () => irPara(E.pagina - 1));
+$("#pg-prox").addEventListener("click", () => irPara(E.pagina + 1));
+$("#v-img").addEventListener("click", () => { E.vista = "img"; $("#v-img").classList.add("ativo"); $("#v-txt").classList.remove("ativo"); desenharPagina(); });
+$("#v-txt").addEventListener("click", () => { E.vista = "txt"; $("#v-txt").classList.add("ativo"); $("#v-img").classList.remove("ativo"); desenharPagina(); });
+$("#zoom-mais").addEventListener("click", () => { E.zoom = Math.min(3, +(E.zoom + 0.2).toFixed(1)); guardar("zoom", E.zoom); desenharPagina(); });
+$("#zoom-menos").addEventListener("click", () => { E.zoom = Math.max(0.6, +(E.zoom - 0.2).toFixed(1)); guardar("zoom", E.zoom); desenharPagina(); });
+$("#limpar-grifo").addEventListener("click", () => grifar(null));
+document.querySelectorAll("input[name=escopo]").forEach(r => r.addEventListener("change", desenharLista));
+$("#so-pend").addEventListener("change", desenharLista);
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); salvar(); return; }
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
+  if (e.key === "ArrowLeft") irPara(E.pagina - 1);
+  if (e.key === "ArrowRight") irPara(E.pagina + 1);
+});
+window.addEventListener("beforeunload", (e) => { if (E.sujo) { e.preventDefault(); e.returnValue = ""; } });
+iniciar().catch(e => status("erro ao iniciar: " + e.message, "erro"));
+</script>
+</body>
+</html>
