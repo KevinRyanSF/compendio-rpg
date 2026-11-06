@@ -13,12 +13,14 @@ O que ele faz de propósito:
 
 from __future__ import annotations
 
+import html
+import re
 from typing import Callable, Literal
 
 from pydantic import BaseModel, Field
 
 from .avaliacao import norm
-from .llm import LLM
+from .llm import LLM, SaidaTruncada
 from .schema import canonico
 
 INSTRUCOES = """Você extrai conteúdo MECÂNICO de páginas de livros de RPG para montar um compêndio.
@@ -38,7 +40,15 @@ Para cada entrada:
   valor copiado do livro, sem reescrever.
 - descricao: o efeito mecânico em até duas frases.
 
-Se uma entrada começa ou termina fora da página, extraia o que estiver visível."""
+Se uma entrada começa ou termina fora da página, extraia o que estiver visível.
+Escreva em português com acentos normais (UTF-8): nada de entidades HTML (&iacute;) nem apóstrofos no lugar de acento."""
+
+MAX_TOKENS = 16_384  # páginas de tabela (ex.: 37 armas) passam fácil de 4 mil tokens de saída
+
+
+def limpar(texto: str) -> str:
+    """Conserta entidades HTML que o modelo às vezes devolve (F&iacute;sico -> Físico)."""
+    return re.sub(r"\s+", " ", html.unescape(texto or "")).strip()
 
 
 class Atributo(BaseModel):
@@ -62,9 +72,28 @@ def _para_saida(e: Entrada, sistema: str, pagina: int) -> dict:
     atributos: dict[str, str] = {}
     for a in e.atributos:
         chave = canonico.slug(a.chave) if a.chave.strip() else "atributo"
-        atributos[chave] = f"{atributos[chave]}; {a.valor}" if chave in atributos else a.valor
-    return {"sistema": sistema, "categoria_canonica": e.categoria_canonica, "categoria_no_livro": e.categoria_no_livro,
-            "nome": e.nome.strip(), "paginas": [pagina, pagina], "atributos": atributos, "descricao": e.descricao.strip()}
+        valor = limpar(a.valor)
+        atributos[chave] = f"{atributos[chave]}; {valor}" if chave in atributos else valor
+    return {"sistema": sistema, "categoria_canonica": e.categoria_canonica, "categoria_no_livro": limpar(e.categoria_no_livro),
+            "nome": limpar(e.nome), "paginas": [pagina, pagina], "atributos": atributos, "descricao": limpar(e.descricao)}
+
+
+def _metades(texto: str) -> list[str]:
+    linhas = texto.splitlines()
+    meio = len(linhas) // 2
+    return ["\n".join(linhas[:meio]), "\n".join(linhas[meio:])]
+
+
+def _extrair_texto(llm: LLM, instrucoes: str, pagina: int, texto: str, modelo: str | None, nivel: int = 0) -> list[Entrada]:
+    """Se a resposta não couber, divide a página ao meio e tenta de novo (até 2 vezes)."""
+    try:
+        r = llm.estruturado(etapa="baseline", instrucoes=instrucoes, conteudo=f"[Página {pagina}]\n{texto}",
+                            schema=Lote, modelo=modelo, max_tokens=MAX_TOKENS)
+    except SaidaTruncada:
+        if nivel >= 2 or len(texto.splitlines()) < 4:
+            raise
+        return [e for parte in _metades(texto) for e in _extrair_texto(llm, instrucoes, pagina, parte, modelo, nivel + 1)]
+    return Lote.model_validate(r.dados).entradas
 
 
 def juntar_mesmo_nome(entradas: list[dict]) -> list[dict]:
@@ -91,10 +120,8 @@ def extrair(llm: LLM, paginas: dict[int, str], *, sistema: str, modelo: str | No
     brutas: list[dict] = []
     for i, (pagina, texto) in enumerate(sorted(paginas.items()), start=1):
         if texto.strip():
-            r = llm.estruturado(etapa="baseline", instrucoes=instrucoes, conteudo=f"[Página {pagina}]\n{texto}",
-                                schema=Lote, modelo=modelo)
-            lote = Lote.model_validate(r.dados)
-            brutas += [_para_saida(e, sistema, pagina) for e in lote.entradas if e.nome.strip()]
+            entradas = _extrair_texto(llm, instrucoes, pagina, texto, modelo)
+            brutas += [_para_saida(e, sistema, pagina) for e in entradas if e.nome.strip()]
         if ao_progresso:
             ao_progresso(i, len(paginas), len(brutas))
     return juntar_mesmo_nome(brutas)

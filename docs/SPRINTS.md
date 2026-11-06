@@ -45,6 +45,26 @@ Consequências:
   impresso (ou de títulos detectados por fonte com `pdfscope.page_lines`) e corrigir o deslocamento de páginas.
 - Para o índice do Ordem inteiro, o Mapeador gasta ~1,8 mil tokens; o livro inteiro custaria ~197 mil.
 
+## Primeira rodada do baseline (Gemini rápido, 06/11)
+
+**Ordem Paranormal** — 6 chamadas, ~6,5 mil tokens de entrada, 18 s:
+precisão 93%, cobertura 94%, atributos corretos 61% (+16% com o valor certo em outro nome de campo),
+contexto recuperado 0/14.
+
+O que deu errado e o que isso diz sobre a próxima versão:
+- **Acentos quebrados pelo modelo leve** ("F&iacute;sico", "padr'ao"): 2 rituais contados como
+  faltando *e* sobrando. → limpeza de entidades HTML + instrução no prompt.
+- **Mesmo valor, nome de campo diferente** ("tipo" em vez de "tipo_dano"; "CONHECIMENTO 1" num campo
+  só, em vez de elemento + círculo). → sem um esquema por sistema, cada página inventa seus nomes.
+  É o argumento para o **Mapeador descobrir o esquema da categoria** antes de extrair.
+- **Formas Discente/Verdadeiro perdidas** e cabeçalhos de grupo da tabela ("Corpo a Corpo – Duas
+  Mãos") ignorados. → o esquema descoberto precisa listar esses campos.
+- **Contexto 0/14**: nada do que está em outra página foi recuperado (esperado para o baseline).
+  → é o que o especialista com `buscar_trecho` precisa melhorar.
+
+**D&D** — a página 150 (37 armas) estourou o limite de 4.096 tokens de saída e o JSON veio cortado.
+→ limite de 16 mil tokens e, se ainda cortar, a página é dividida ao meio automaticamente.
+
 ## Decisões
 
 | decisão | motivo |

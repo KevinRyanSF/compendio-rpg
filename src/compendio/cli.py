@@ -144,8 +144,12 @@ def cmd_extrair(args) -> int:
         def progresso(i, total, n):
             print(f"\r  página {i}/{total} · {n} entradas", end="", flush=True)
 
-        saida, meta = experimento.rodar(raiz, livro, cfg, estrategia=args.estrategia, papel=args.modelo,
-                                        ao_progresso=progresso)
+        try:
+            saida, meta = experimento.rodar(raiz, livro, cfg, estrategia=args.estrategia, papel=args.modelo,
+                                            ao_progresso=progresso)
+        except Exception as erro:  # noqa: BLE001 - registra e segue para o próximo livro
+            print(f"\n  FALHOU: {type(erro).__name__}: {str(erro)[:300]}")
+            continue
         print(f"\n  saída: {saida.relative_to(raiz)}")
         if not args.sem_avaliar:
             metricas = experimento.avaliar(raiz, livro, saida)

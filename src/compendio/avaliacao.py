@@ -95,6 +95,7 @@ class ComparacaoAtributo:
     obtido: Any
     bate: bool
     fora_do_recorte: bool = False
+    chave_obtida: str | None = None  # valor certo, mas guardado com outro nome de campo
 
 
 @dataclass
@@ -127,6 +128,7 @@ class Resultado:
             "acertos": tp, "faltaram": fn, "sobraram": self._conta("sobrou"), "indevidos": self._conta("indevido"),
             "precisao": round(prec, 3), "cobertura": round(cob, 3), "f1": round(f1, 3),
             "atributos_corretos": round(sum(a.bate for a in attrs) / len(attrs), 3) if attrs else None,
+            "valor_em_outra_chave": round(sum(bool(a.chave_obtida) for a in attrs) / len(attrs), 3) if attrs else None,
             "contexto_recuperado": f"{sum(a.bate for a in fora)}/{len(fora)}" if fora else None,
         }
 
@@ -169,11 +171,17 @@ def comparar(gold: list[dict], saida: list[dict], paginas_do_recorte: set[int] |
         obtidos = {chave_canonica(k): v for k, v in (s.get("atributos") or {}).items()}
         obtidos.update({k: v for k, v in (s.get("atributos") or {}).items()})
         fora = set(g.get("fora_do_recorte") or [])
-        attrs = [
-            ComparacaoAtributo(k, v, obtidos.get(k, obtidos.get(chave_canonica(k))),
-                               valores_batem(v, obtidos.get(k, obtidos.get(chave_canonica(k)))), k in fora)
-            for k, v in (g.get("atributos") or {}).items()
-        ]
+        brutos = s.get("atributos") or {}
+        attrs = []
+        for k, v in (g.get("atributos") or {}).items():
+            obtido = obtidos.get(k, obtidos.get(chave_canonica(k)))
+            a = ComparacaoAtributo(k, v, obtido, valores_batem(v, obtido), k in fora)
+            if not a.bate and not isinstance(v, bool):
+                # o valor está lá, só que com outro nome? (ex.: 'tipo' em vez de 'tipo_dano')
+                outra = next((ko for ko, vo in brutos.items() if ko != k and valores_batem(v, vo)), None)
+                if outra:
+                    a.chave_obtida, a.obtido = outra, brutos[outra]
+            attrs.append(a)
         itens.append(Item("acerto", g["nome"], gold=g, saida=s, atributos=attrs,
                           categoria_diverge=s.get("categoria_canonica") not in (None, g.get("categoria_canonica"))))
 

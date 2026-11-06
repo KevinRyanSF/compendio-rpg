@@ -73,6 +73,10 @@ class RegistroDeUso:
                 f.write(json.dumps(asdict(u), ensure_ascii=False) + "\n")
 
 
+class SaidaTruncada(RuntimeError):
+    """A resposta passou do limite de tokens de saída e veio cortada (JSON incompleto)."""
+
+
 @dataclass
 class Resposta:
     dados: dict[str, Any]
@@ -222,6 +226,8 @@ class ClaudeLLM(LLM):
             tool_choice={"type": "tool", "name": nome_tool},
             messages=[{"role": "user", "content": conteudo}],
         )
+        if getattr(resp, "stop_reason", None) == "max_tokens":
+            raise SaidaTruncada(f"[{etapa}] resposta cortada no limite de {max_tokens} tokens")
         for bloco in resp.content:
             if getattr(bloco, "type", None) == "tool_use":
                 return dict(bloco.input), self._uso(resp, etapa, modelo)
@@ -277,9 +283,13 @@ class GeminiLLM(LLM):
             },
         )
         texto = getattr(resp, "text", None) or ""
+        candidatos = getattr(resp, "candidates", None) or []
+        motivo = str(getattr(candidatos[0], "finish_reason", "")) if candidatos else ""
         try:
             dados = json.loads(texto)
         except json.JSONDecodeError as erro:
+            if "MAX_TOKENS" in motivo or texto.strip() and not texto.rstrip().endswith("}"):
+                raise SaidaTruncada(f"[{etapa}] resposta cortada no limite de {max_tokens} tokens") from erro
             raise RuntimeError(f"[{etapa}] o Gemini não devolveu JSON válido: {texto[:200]!r}") from erro
         if not isinstance(dados, dict):
             raise RuntimeError(f"[{etapa}] esperava um objeto JSON, veio {type(dados).__name__}")

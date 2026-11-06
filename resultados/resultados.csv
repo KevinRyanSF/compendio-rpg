@@ -1,0 +1,2 @@
+data,livro,estrategia,provedor,modelos,paginas,chamadas,tokens_entrada,tokens_saida,cache_lido,segundos,acertos,faltaram,sobraram,indevidos,precisao,cobertura,f1,atributos_corretos,contexto_recuperado,saida
+2026-11-06T14:20:53,ordem-paranormal,baseline,gemini,gemini-3.5-flash-lite,6,6,6496,5735,0,18.1,50,3,4,0,0.926,0.943,0.935,0.606,0/14,data/saidas/baseline-gemini-rapido-ordem-paranormal.jsonl

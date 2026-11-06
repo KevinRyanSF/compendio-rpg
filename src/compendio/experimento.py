@@ -27,7 +27,7 @@ ESTRATEGIAS = {"baseline": baseline.extrair}
 
 COLUNAS = ["data", "livro", "estrategia", "provedor", "modelos", "paginas", "chamadas", "tokens_entrada",
            "tokens_saida", "cache_lido", "segundos", "acertos", "faltaram", "sobraram", "indevidos",
-           "precisao", "cobertura", "f1", "atributos_corretos", "contexto_recuperado", "saida"]
+           "precisao", "cobertura", "f1", "atributos_corretos", "valor_em_outra_chave", "contexto_recuperado", "saida"]
 
 
 def resolver_modelo(cfg: Config, papel: str) -> str:
@@ -72,6 +72,15 @@ def avaliar(raiz: Path, livro: str, saida: Path) -> dict:
 def registrar(raiz: Path, meta: dict, metricas: dict, saida: Path) -> Path:
     arquivo = raiz / "resultados" / "resultados.csv"
     arquivo.parent.mkdir(parents=True, exist_ok=True)
+    if arquivo.exists():  # colunas novas: reescreve o cabeçalho mantendo as linhas antigas
+        with arquivo.open(encoding="utf-8", newline="") as f:
+            leitor = csv.DictReader(f)
+            antigas = list(leitor) if leitor.fieldnames != COLUNAS else None
+        if antigas is not None:
+            with arquivo.open("w", encoding="utf-8", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=COLUNAS, extrasaction="ignore")
+                w.writeheader()
+                w.writerows(antigas)
     novo = not arquivo.exists()
     linha: dict[str, Any] = {**meta, **metricas,
                              "saida": str(Path(saida).resolve().relative_to(Path(raiz).resolve())).replace("\\", "/")}
@@ -87,7 +96,8 @@ def formatar(meta: dict, m: dict) -> str:
     pct = lambda v: "—" if v is None else f"{v * 100:.0f}%"  # noqa: E731
     return (f"{meta['livro']} · {meta['estrategia']} · {meta['provedor']} ({meta['modelos']})\n"
             f"  precisão {pct(m['precisao'])} · cobertura {pct(m['cobertura'])} · F1 {pct(m['f1'])} · "
-            f"atributos corretos {pct(m['atributos_corretos'])} · contexto recuperado {m['contexto_recuperado'] or '—'}\n"
+            f"atributos corretos {pct(m['atributos_corretos'])} (+{pct(m.get('valor_em_outra_chave'))} com outro nome) · "
+            f"contexto recuperado {m['contexto_recuperado'] or '—'}\n"
             f"  {m['acertos']} acertos, {m['faltaram']} faltaram, {m['sobraram']} sobraram, {m['indevidos']} indevidos\n"
             f"  {meta['chamadas']} chamadas · {meta['tokens_entrada']} tokens de entrada · "
             f"{meta['tokens_saida']} de saída · {meta['segundos']}s")

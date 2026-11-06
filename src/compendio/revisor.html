@@ -354,8 +354,11 @@ function cardComp(it) {
     card.append(el("table", {}, el("thead", {}, el("tr", {}, el("th", {}, "atributo"), el("th", {}, "esperado"), el("th", {}, "extraído"), el("th", {}, ""))),
       el("tbody", {}, it.atributos.map(x => el("tr", {},
         el("td", { class: "k" }, x.chave, x.fora_do_recorte ? el("div", { class: "fora-recorte" }, "fora do recorte") : null),
-        el("td", {}, mostrar(x.esperado)), el("td", {}, mostrar(x.obtido) || "—"),
-        el("td", { class: "s" }, x.bate ? el("span", { class: "ic ok" }, "✓") : el("span", { class: "ic err" }, "✗")))))));
+        el("td", {}, mostrar(x.esperado)),
+        el("td", {}, mostrar(x.obtido) || "—", x.chave_obtida ? el("div", { class: "fora-recorte" }, `com o nome “${x.chave_obtida}”`) : null),
+        el("td", { class: "s" }, x.bate ? el("span", { class: "ic ok" }, "✓")
+          : x.chave_obtida ? el("span", { class: "ic nao", title: "valor certo, nome do campo diferente" }, "≈")
+          : el("span", { class: "ic err" }, "✗")))))));
   } else if (it.saida && it.saida.atributos && Object.keys(it.saida.atributos).length) {
     card.append(el("table", {}, el("tbody", {}, Object.entries(it.saida.atributos).map(([k, v]) =>
       el("tr", {}, el("td", { class: "k" }, k), el("td", {}, mostrar(v)))))));
@@ -414,6 +417,7 @@ function desenharMetricas() {
     el("span", { class: "metrica" }, "Cobertura ", el("b", {}, pct(x.cobertura))),
     el("span", { class: "metrica" }, "F1 ", el("b", {}, pct(x.f1))),
     el("span", { class: "metrica" }, "Atributos corretos ", el("b", {}, pct(x.atributos_corretos))),
+    el("span", { class: "metrica", title: "valor certo, mas guardado com outro nome de campo" }, "Valor com outro nome ", el("b", {}, pct(x.valor_em_outra_chave))),
     el("span", { class: "metrica" }, "Contexto recuperado ", el("b", {}, x.contexto_recuperado || "—")),
     el("span", { class: "metrica" }, `${x.acertos} acertos · ${x.faltaram} faltaram · ${x.sobraram} sobraram · ${x.indevidos} indevidos`));
   m.classList.add("visivel");
