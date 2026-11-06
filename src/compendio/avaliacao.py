@@ -123,13 +123,16 @@ class Resultado:
         cob = tp / (tp + fn) if tp + fn else 0.0
         f1 = 2 * prec * cob / (prec + cob) if prec + cob else 0.0
         attrs = [a for i in self.itens if i.status == "acerto" for a in i.atributos if not a.fora_do_recorte]
-        fora = [a for i in self.itens if i.status == "acerto" for a in i.atributos if a.fora_do_recorte]
+        # entradas que dependem de outra página: completas = achadas e com tudo o que estava fora certo
+        dependentes = [i for i in self.itens if i.status in ("acerto", "faltou") and (i.gold or {}).get("fora_do_recorte")]
+        completas = sum(1 for i in dependentes if i.status == "acerto"
+                        and all(a.bate for a in i.atributos if a.fora_do_recorte))
         return {
             "acertos": tp, "faltaram": fn, "sobraram": self._conta("sobrou"), "indevidos": self._conta("indevido"),
             "precisao": round(prec, 3), "cobertura": round(cob, 3), "f1": round(f1, 3),
             "atributos_corretos": round(sum(a.bate for a in attrs) / len(attrs), 3) if attrs else None,
             "valor_em_outra_chave": round(sum(bool(a.chave_obtida) for a in attrs) / len(attrs), 3) if attrs else None,
-            "contexto_recuperado": f"{sum(a.bate for a in fora)}/{len(fora)}" if fora else None,
+            "contexto_recuperado": f"{completas}/{len(dependentes)}" if dependentes else None,
         }
 
     def como_dict(self) -> dict:

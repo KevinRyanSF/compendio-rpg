@@ -739,8 +739,8 @@ wheels = [
 
 [[package]]
 name = "pdfscope"
-version = "0.2.0"
-source = { git = "https://github.com/KevinRyanSF/pdfscope#324f7ec8c5cc586674bf8d3852d6ebd06f339d09" }
+version = "0.3.0"
+source = { git = "https://github.com/KevinRyanSF/pdfscope#7bcd4edbd81601053fd86235eb3280bf75f7d5eb" }
 dependencies = [
     { name = "pymupdf" },
 ]

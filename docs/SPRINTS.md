@@ -65,6 +65,32 @@ O que deu errado e o que isso diz sobre a próxima versão:
 **D&D** — a página 150 (37 armas) estourou o limite de 4.096 tokens de saída e o JSON veio cortado.
 → limite de 16 mil tokens e, se ainda cortar, a página é dividida ao meio automaticamente.
 
+## Segunda rodada do baseline (com as correções, 06/11)
+
+| livro | precisão | cobertura | F1 | atributos corretos | valor com outro nome | contexto | chamadas | tokens entrada/saída | tempo |
+|---|---|---|---|---|---|---|---|---|---|
+| Ordem Paranormal | 100% | 98% | 99% | 68% | +15% | 0/14 | 6 | 6,7 mil / 7,1 mil | 18 s |
+| D&D 5e | 100% | 98% | 99% | 57% | +14% | 0/1 | 7 | 9,9 mil / 7,6 mil | 25 s |
+
+**Conclusão: o baseline já resolve a detecção; o problema é a estrutura e o contexto.**
+Nenhum valor extraído estava errado — todos os erros de atributo são de *estrutura*:
+
+1. **Campo herdado do cabeçalho da tabela** não vem na linha: classe/empunhadura das armas
+   (Simples/Marcial, "Corpo a Corpo – Duas Mãos") — 18 no Ordem, 74 no D&D.
+2. **Campos fundidos**: "1d4 perfurante" (dano + tipo), "3° nível de evocação" (nível + escola),
+   "SANGUE 2" (elemento + círculo).
+3. **Campos escondidos na prosa**: Discente/Verdadeiro, "Em Níveis Superiores", resistência, dados, ritual.
+4. **Contexto**: as duas únicas entradas que faltaram (Envenenado, Banquete de Heróis) começam na
+   página anterior ao recorte.
+
+Isso define a Sprint 2 pela evidência, não pela arquitetura desejada:
+- **Mapeador / descoberta de esquema** → resolve 1, 2 e 3 (cada categoria ganha a lista de campos,
+  incluindo os herdados do cabeçalho e os que ficam na prosa).
+- **Validador determinístico** → separa campos fundidos (dados com `dados.py`, nível/escola).
+- **Especialista com `buscar_trecho`** → resolve 4.
+- Critério de sucesso: subir "atributos corretos" e "contexto" **sem perder** precisão/cobertura,
+  com custo de tokens medido (o baseline custa ~14 mil tokens por livro nos recortes).
+
 ## Decisões
 
 | decisão | motivo |

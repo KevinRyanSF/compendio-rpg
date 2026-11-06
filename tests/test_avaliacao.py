@@ -40,8 +40,9 @@ def test_comparacao_com_a_saida_de_exemplo():
     assert m["acertos"] == 49 and m["faltaram"] == 4 and m["sobraram"] == 2 and m["indevidos"] == 1
     assert m["precisao"] == round(49 / 52, 3)
     assert m["cobertura"] == round(49 / 53, 3)
-    # 11 classes "Armas Táticas" (cabeçalho na p.64) acertadas; discente/verdadeiro de Compreensão faltaram
-    assert m["contexto_recuperado"] == "11/13"
+    # 14 entradas dependem de outra página: 11 armas completas (classe "Armas Táticas" da p.64);
+    # Gadanho e Envenenado faltaram; Compreensão Paranormal veio sem discente/verdadeiro
+    assert m["contexto_recuperado"] == "11/14"
 
     atroz = next(i for i in r.itens if i.nome == "Arma Atroz")
     duracao = next(a for a in atroz.atributos if a.chave == "duracao")
