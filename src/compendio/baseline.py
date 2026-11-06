@@ -84,16 +84,21 @@ def _metades(texto: str) -> list[str]:
     return ["\n".join(linhas[:meio]), "\n".join(linhas[meio:])]
 
 
-def _extrair_texto(llm: LLM, instrucoes: str, pagina: int, texto: str, modelo: str | None, nivel: int = 0) -> list[Entrada]:
-    """Se a resposta não couber, divide a página ao meio e tenta de novo (até 2 vezes)."""
+def estruturado_com_divisao(llm: LLM, *, etapa: str, instrucoes: str, prefixo: str, texto: str, schema,
+                            modelo: str | None, nivel: int = 0) -> list[dict]:
+    """Uma chamada estruturada; se a resposta não couber, divide o texto ao meio (até 2 vezes).
+
+    Devolve a lista de respostas (uma por parte)."""
     try:
-        r = llm.estruturado(etapa="baseline", instrucoes=instrucoes, conteudo=f"[Página {pagina}]\n{texto}",
-                            schema=Lote, modelo=modelo, max_tokens=MAX_TOKENS)
+        r = llm.estruturado(etapa=etapa, instrucoes=instrucoes, conteudo=f"{prefixo}\n{texto}",
+                            schema=schema, modelo=modelo, max_tokens=MAX_TOKENS)
     except SaidaTruncada:
         if nivel >= 2 or len(texto.splitlines()) < 4:
             raise
-        return [e for parte in _metades(texto) for e in _extrair_texto(llm, instrucoes, pagina, parte, modelo, nivel + 1)]
-    return Lote.model_validate(r.dados).entradas
+        return [d for parte in _metades(texto) for d in estruturado_com_divisao(
+            llm, etapa=etapa, instrucoes=instrucoes, prefixo=prefixo, texto=parte, schema=schema,
+            modelo=modelo, nivel=nivel + 1)]
+    return [r.dados]
 
 
 def juntar_mesmo_nome(entradas: list[dict]) -> list[dict]:
@@ -107,8 +112,9 @@ def juntar_mesmo_nome(entradas: list[dict]) -> list[dict]:
         j = juntas[k]
         j["paginas"] = [min(j["paginas"][0], e["paginas"][0]), max(j["paginas"][1], e["paginas"][1])]
         for chave, valor in e["atributos"].items():
-            j["atributos"].setdefault(chave, valor)
-        if len(e["descricao"]) > len(j["descricao"]):
+            if j["atributos"].get(chave) in (None, "", []):
+                j["atributos"][chave] = valor
+        if len(e.get("descricao", "")) > len(j.get("descricao", "")):
             j["descricao"] = e["descricao"]
     return list(juntas.values())
 
@@ -120,7 +126,9 @@ def extrair(llm: LLM, paginas: dict[int, str], *, sistema: str, modelo: str | No
     brutas: list[dict] = []
     for i, (pagina, texto) in enumerate(sorted(paginas.items()), start=1):
         if texto.strip():
-            entradas = _extrair_texto(llm, instrucoes, pagina, texto, modelo)
+            respostas = estruturado_com_divisao(llm, etapa="baseline", instrucoes=instrucoes,
+                                                prefixo=f"[Página {pagina}]", texto=texto, schema=Lote, modelo=modelo)
+            entradas = [e for d in respostas for e in Lote.model_validate(d).entradas]
             brutas += [_para_saida(e, sistema, pagina) for e in entradas if e.nome.strip()]
         if ao_progresso:
             ao_progresso(i, len(paginas), len(brutas))

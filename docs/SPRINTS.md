@@ -26,7 +26,8 @@ Teste sugerido: gold set pequeno; comparar extração numa passada × versão qu
 ## Sprint 2 — multiagente + RAG
 
 - [ ] 5. Busca híbrida: literal (pdfscope) + semântica + glossário do sistema
-- [ ] 6. Mapeador: roteamento pelo índice + descoberta de categorias/atributos
+- [~] 6. Mapeador: descoberta de categorias/atributos (`--estrategia esquema`) — implementado, falta rodar
+      (roteamento pelo índice fica para quando rodar no livro inteiro)
 - [ ] 7. Especialistas com `buscar_trecho` (o salto agentivo)
 - [ ] 8. Validador com devolução ao especialista
 - [ ] 9. Baseline × multiagente no gold set → tabela de resultados

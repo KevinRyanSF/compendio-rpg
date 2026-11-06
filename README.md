@@ -59,7 +59,7 @@ uv run pytest
 | `uv run compendio ingerir livros\X.pdf` | gera `data/chunks/X.jsonl` e um diagnóstico do PDF |
 | `uv run compendio demo` | cria `data/demo.db` com um ritual e uma magia de exemplo |
 | `uv run compendio banco` | lista categorias, atributos e entradas do compêndio |
-| `uv run compendio extrair [--livro X] [--modelo forte] [--provedor claude]` | roda o baseline nos recortes do gold set, avalia e registra em `resultados/resultados.csv` |
+| `uv run compendio extrair [--estrategia esquema] [--livro X] [--modelo forte] [--provedor claude]` | roda uma estratégia nos recortes do gold set, avalia e registra em `resultados/resultados.csv` |
 | `uv run compendio avaliar --livro X --saida Y` | compara uma saída `.jsonl` com o gold set |
 | `uv run compendio revisar` | abre no navegador o revisor do gabarito e das saídas (veja abaixo) |
 
@@ -94,6 +94,7 @@ src/compendio/
   storage/banco.py   SQLite com tabelas fixas + uma view por categoria
   exemplo.py         categorias de exemplo (Ritual/Ordem, Magia/D&D) para demo e testes
   baseline.py        1 LLM, uma chamada por página — a régua que os agentes precisam superar
+  esquema.py         Mapeador descobre o esquema de cada categoria → Especialista extrai seguindo o esquema
   experimento.py     roda uma estratégia nos recortes, avalia e registra o resultado
   avaliacao.py       compara saída × gold: precisão, cobertura, F1, atributos, contexto
   revisor.py/.html   revisor visual local (servidor HTTP da biblioteca padrão)

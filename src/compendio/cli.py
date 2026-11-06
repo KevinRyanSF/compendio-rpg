@@ -213,7 +213,8 @@ def main(argv: list[str] | None = None) -> int:
 
     s = sub.add_parser("extrair", help="roda uma estratégia de extração nos recortes do gold set e avalia")
     s.add_argument("--livro", default="todos", help="chave em gold/recortes.json, ou 'todos'")
-    s.add_argument("--estrategia", default="baseline", choices=["baseline"])
+    s.add_argument("--estrategia", default="baseline", choices=["baseline", "esquema"],
+                   help="baseline (1 LLM por página) ou esquema (Mapeador descobre o esquema + Especialista)")
     s.add_argument("--provedor", choices=["gemini", "claude"], help="sobrescreve COMPENDIO_PROVEDOR")
     s.add_argument("--modelo", default="rapido", help="rapido, forte ou o nome de um modelo")
     s.add_argument("--sem-avaliar", action="store_true")
