@@ -77,6 +77,8 @@ class Doc:
     pedidas: list[int] = []
 
     TEXTOS = {64: "ARMAS TÁTICAS\nFaca 0 1d4", 65: "Corpo a Corpo – Duas Mãos\nAcha I 1d12",
+              133: "125\nArma Atroz\n SANGUE 1\nCapturar o Coração\n SANGUE 4",
+              319: "311\nCONDIÇÕES\ndada). A descrição do veneno\nEsmorecido. Condição mental.",
               134: "Compreensão Paranormal\nCONHECIMENTO 1", 318: "Enredado. fica lento.\nEnvenenado. O efeito varia"}
 
     def page_text_raw(self, p):
@@ -118,3 +120,21 @@ def test_revisor_e_contexto(tmp_path):
     m = experimento.avaliar(tmp_path, "ordem-paranormal", saida)
     assert m["contexto_recuperado"] == "3/14"  # Compreensão completa + Envenenado + Acha com 'Armas Táticas'
     assert m["sobraram"] == 0
+
+
+def test_linha_de_titulo():
+    from compendio.esquema import _comeca_no_meio, _e_titulo, _linha_de_titulo
+    pag = "222\nBOLA DE FOGO CONTROLÁVEL\n7° nível\ncomo uma conta brilhante, pela\nEsmorecido. O personagem sofre\nAcha I 1d12 x3 — C 2"
+    assert not _e_titulo("Bola de Fogo", pag)             # só aparece dentro de outro título
+    assert _e_titulo("Bola de Fogo Controlável", pag)
+    assert not _e_titulo("Conta Brilhante", pag)          # objeto no meio da prosa
+    assert _e_titulo("Esmorecido", pag) and _e_titulo("Acha", pag)
+    assert _linha_de_titulo("bola de fogo", "BOLA DE FOGO\n…\nBOLA DE FOGO CONTROLÁVEL") == 0
+
+    from compendio.exemplo import MAGIA_DND
+    from compendio.schema import Atributo
+    magia = MAGIA_DND.model_copy(update={"atributos": [*MAGIA_DND.atributos, Atributo(nome="c", rotulo="Componentes")]})
+    assert _comeca_no_meio("311\nCONDIÇÕES\ndada). A descrição do veneno", [])
+    assert _comeca_no_meio("223\nComponentes: V, S, M (uma tigela", [magia])
+    assert not _comeca_no_meio("291\nAPÊNDICE A: CONDIÇÕES\nS CONDIÇÕES ALTERAM AS CAPACIDADES", [magia])
+    assert not _comeca_no_meio("125\nAprimorar Físico\n SANGUE 2", [magia])

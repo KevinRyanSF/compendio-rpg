@@ -24,6 +24,7 @@ O esquema descoberto vira `Categoria` (schema/registro.py) e é gravado no banco
 
 from __future__ import annotations
 
+import re
 from typing import Any, Callable, Literal, Optional
 
 from pydantic import BaseModel, Field, ValidationError, create_model
@@ -121,7 +122,9 @@ Regras:
 - nome exatamente como no livro; descricao = o efeito mecânico em até duas frases.
 - Copie os valores do livro sem reescrever, mas SEPARE o que o esquema separa
   (ex.: "SANGUE 2" → elemento "Sangue" e círculo 2).
-- Campos de origem `cabecalho`: use o cabeçalho de grupo mais recente acima da linha.
+- Campos de origem `cabecalho`: use o cabeçalho de grupo mais recente acima da linha. Se houver cabeçalhos
+  em dois níveis (ex.: "Armas Táticas" e, abaixo, "Corpo a Corpo – Duas Mãos"), cada campo recebe o seu
+  nível: o de cima vai no campo do grupo maior e o subcabeçalho no outro — não repita o subcabeçalho.
 - Campos de origem `prosa`: procure no texto da entrada (ex.: "Discente (+3 PE): ...").
 - Campo sem valor no livro: deixe nulo. Não invente.
 - Se uma entrada começa ou termina fora da página, extraia o que estiver visível e liste o nome em `incompletas`.
@@ -286,6 +289,53 @@ def _posicao(nome: str, texto_norm: str) -> int:
     return texto_norm.rfind(norm(nome)) if norm(nome) else -1
 
 
+def _linha_de_titulo(nome: str, texto: str) -> int:
+    """Índice da ÚLTIMA linha em que `nome` aparece como título (início da linha), ou -1.
+
+    'Esmorecido. O personagem…', 'Acha I 1d12 x3' e 'BOLA DE FOGO' são títulos;
+    'como uma conta brilhante' não é, e 'BOLA DE FOGO CONTROLÁVEL' não é título de 'Bola de Fogo'."""
+    from .avaliacao import norm
+
+    alvo = norm(nome)
+    if not alvo:
+        return -1
+    achou = -1
+    for i, linha in enumerate(texto.splitlines()):
+        n = norm(linha)
+        if n == alvo or (n.startswith(alvo) and n[len(alvo)] in " .:(—–-" and not n[len(alvo):].strip()[:1].isalpha()):
+            achou = i
+        elif n.startswith(alvo + " ") and re.match(r"\s+[0-9ivx—–-]", n[len(alvo):]):  # linha de tabela: nome + dados
+            achou = i
+    return achou
+
+
+def _e_titulo(nome: str, *textos: str) -> bool:
+    return any(_linha_de_titulo(nome, t) >= 0 for t in textos)
+
+
+def _comeca_no_meio(texto: str, categorias: list[Categoria]) -> bool:
+    """A página começa continuando uma entrada da página anterior?
+
+    Sinais (ignorando número de página e cabeçalho corrido em caixa-alta): a primeira linha de conteúdo
+    começa com minúscula/pontuação, ou com um rótulo de campo do esquema ('Componentes: …')."""
+    from .avaliacao import norm
+
+    rotulos = {norm(a.rotulo) for c in categorias for a in c.atributos if a.rotulo}
+    pulou_cabecalho = False
+    for linha in texto.splitlines():
+        l = linha.strip()
+        if not l or l.isdigit():
+            continue
+        if l.isupper() and len(l) < 40 and not pulou_cabecalho:  # cabeçalho corrido da página (só um)
+            pulou_cabecalho = True
+            continue
+        if l[0].islower() or l[0] in ").,;:–-":
+            return True
+        n = norm(l)
+        return any(n.startswith(r + ":") for r in rotulos)
+    return False
+
+
 def _filtrar_contexto(novas: list[tuple[Categoria, dict]], *, direcao: str, nome: str, texto: str,
                       vizinho: str) -> list[tuple[Categoria, dict]]:
     """O modelo costuma extrair a página vizinha inteira; aqui fica só o que foi pedido.
@@ -299,14 +349,13 @@ def _filtrar_contexto(novas: list[tuple[Categoria, dict]], *, direcao: str, nome
 
     if nome:
         alvo = norm(nome)
-        return [(c, b) for c, b in novas if norm(b.get("nome", "")) == alvo or alvo in norm(b.get("nome", ""))]
+        return [(c, b) for c, b in novas if norm(b.get("nome", "")) == alvo]
     if direcao == "anterior":
-        viz = norm(vizinho[-TRECHO_VIZINHO:])
-        com_pos = [(c, b, _posicao(b.get("nome", ""), viz)) for c, b in novas]
+        viz = vizinho[-TRECHO_VIZINHO:]
+        com_pos = [(c, b, _linha_de_titulo(b.get("nome", ""), viz)) for c, b in novas]
         com_pos = [x for x in com_pos if x[2] >= 0]
         return [max(com_pos, key=lambda x: x[2])[:2]] if com_pos else []
-    pagina = norm(texto)
-    return [(c, b) for c, b in novas if _posicao(b.get("nome", ""), pagina) >= 0]
+    return [(c, b) for c, b in novas if _e_titulo(b.get("nome", ""), texto)]
 
 
 def _tem_cabecalho(categorias: list[Categoria]) -> bool:
@@ -357,7 +406,8 @@ def extrair_com_revisao(llm: LLM, paginas: dict[int, str], *, sistema: str, mode
 
             # Revisor de cobertura: nomes que o próprio Especialista viu e não extraiu
             extraidos = {norm(b.get("nome", "")) for _, b in achadas}
-            faltando = list(dict.fromkeys(n for n in info["nomes_na_pagina"] if norm(n) not in extraidos))
+            faltando = list(dict.fromkeys(n for n in info["nomes_na_pagina"]
+                                          if norm(n) not in extraidos and _e_titulo(n, texto)))
             if faltando:
                 avisar(f"p.{p}: revisor pede de novo {', '.join(faltando[:6])}" + ("…" if len(faltando) > 6 else ""))
                 novas, _ = extrair_pagina(llm, texto, p, categorias, sistema=sistema, modelo=modelo, etapa="revisor",
@@ -371,6 +421,8 @@ def extrair_com_revisao(llm: LLM, paginas: dict[int, str], *, sistema: str, mode
             for n in info["incompletas"]:  # o próprio Especialista disse que a entrada está incompleta
                 if norm(n) not in ja_pedidos and _posicao(n, norm(texto)) >= 0:
                     pedidos.append({"nome": n, "direcao": "seguinte", "motivo": "marcada como incompleta"})
+            if _comeca_no_meio(texto, categorias) and not any(x.get("direcao") == "anterior" for x in pedidos):
+                pedidos.insert(0, {"nome": "", "direcao": "anterior", "motivo": "página começa no meio de uma entrada"})
             pedidos = pedidos[:MAX_PEDIDOS_POR_PAGINA]
             vistos: set[tuple[str, str]] = set()
             for pedido in pedidos:
@@ -381,6 +433,9 @@ def extrair_com_revisao(llm: LLM, paginas: dict[int, str], *, sistema: str, mode
                 q = p - 1 if direcao == "anterior" else p + 1
                 vizinho = buscar(q) if q >= 1 else ""
                 if not vizinho.strip():
+                    continue
+                if nome and not _e_titulo(nome, texto, vizinho):
+                    avisar(f"p.{p}: ignora pedido de contexto para '{nome}' (não é título de entrada)")
                     continue
                 cabecalho = "cabecalho" in norm(str(pedido.get("motivo", "")))
                 if direcao == "anterior":

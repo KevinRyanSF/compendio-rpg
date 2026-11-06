@@ -139,6 +139,27 @@ Isso define a Sprint 2 pela evidência, não pela arquitetura desejada:
   "Armas Táticas" (p.64) nem para Compreensão Paranormal, que ele mesmo marcou como incompleta.
   → gatilhos determinísticos: `incompletas` viram pedido da página seguinte; categoria com campos de
   cabeçalho recebe o fim da página anterior como contexto na primeira página do recorte.
+**Segunda rodada (com filtro e gatilhos, 06/11):**
+
+| livro | precisão | cobertura | F1 | atributos | contexto | chamadas | tokens entrada/saída | tempo |
+|---|---|---|---|---|---|---|---|---|
+| Ordem | 100% | 98% | 99% | 81% | 1/14 | 10 | 18,6 mil / 7,9 mil | 24 s |
+| D&D | 98% | **100%** | 99% | 96% | **1/1** | 15 | 33,9 mil / 13,5 mil | 40 s |
+
+- O filtro resolveu as sobras do Ordem; Banquete de Heróis veio **completo** da p.220 e Compreensão
+  Paranormal buscou a p.135 sozinha (marcada como incompleta).
+- Novo erro: o Especialista listou "CONTA BRILHANTE" (objeto citado na descrição de Bola de Fogo
+  Controlável) como entrada; o Revisor e o contexto acreditaram, e o 12d6 da magia foi parar nela.
+  O filtro também casou "BOLA DE FOGO" dentro de "BOLA DE FOGO CONTROLÁVEL".
+  → **regra de título**: um nome só vale como entrada se aparece no começo de uma linha
+  ("Esmorecido. …", "Acha I 1d12", "BOLA DE FOGO"); vale para o Revisor, para pedidos de contexto e
+  para o filtro. Conferido: os 110 nomes do gold set passam na regra.
+- Envenenado voltou a faltar: desta vez o modelo não pediu contexto.
+  → **detector de continuação**: a primeira linha de conteúdo começa com minúscula/pontuação ou com um
+  rótulo do esquema ("Componentes: …"). Nos recortes, dispara exatamente nas p.319 e p.221.
+- "Armas Táticas": com o fim da p.64 o modelo ainda pôs o subcabeçalho no campo de grupo
+  → instrução explícita sobre cabeçalhos em dois níveis.
+
 - Correções na régua (valem para todas as estratégias; baseline e esquema não mudaram):
   categoria "I" guardada como inteiro 1 agora conta como certa; opcionais aceitam variações de nome
   ("Armas Improvisadas").
