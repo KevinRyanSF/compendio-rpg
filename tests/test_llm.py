@@ -131,7 +131,8 @@ def test_config_escolhe_modelos_pelo_provedor(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("GEMINI_API_KEY", "g")
     c = config_mod.carregar(env_file=None)
-    assert (c.provedor, c.api_key, c.modelo_rapido) == ("gemini", "g", "gemini-3.5-flash-lite")
+    assert (c.provedor, c.api_key) == ("gemini", "g")
+    assert c.modelo_rapido.split(",")[0] == "gemini-3.5-flash-lite"
 
     monkeypatch.setenv("COMPENDIO_PROVEDOR", "claude")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "a")
@@ -174,3 +175,22 @@ def test_verificar_mostra_falha_sem_travar(monkeypatch, capsys):
     assert codigo == 1
     assert "testando rápido (rapido)... ok" in saida
     assert "FALHOU: TimeoutError" in saida
+
+
+def test_cadeia_de_reserva_quando_o_modelo_esta_sobrecarregado():
+    falso = GeminiFalso([RuntimeError("503 UNAVAILABLE high demand"), RESPOSTA])
+    llm = GeminiLLM(cfg("gemini"), cliente=falso, dormir=lambda s: None, max_tentativas=1)
+    r = llm.estruturado(etapa="x", instrucoes="i", conteudo="c", schema=modelo_lote(RITUAL_ORDEM),
+                        modelo="gemini-3.8-flash,gemini-3.6-flash")
+    assert [c["model"] for c in falso.chamadas] == ["gemini-3.8-flash", "gemini-3.6-flash"]
+    assert r.uso.modelo == "gemini-3.6-flash"
+    assert r.uso.tentativas == 2
+
+
+def test_erro_permanente_nao_passa_para_a_reserva():
+    falso = GeminiFalso([ValueError("400 INVALID_ARGUMENT"), RESPOSTA])
+    llm = GeminiLLM(cfg("gemini"), cliente=falso, dormir=lambda s: None)
+    with pytest.raises(ValueError):
+        llm.estruturado(etapa="x", instrucoes="i", conteudo="c", schema=modelo_lote(RITUAL_ORDEM),
+                        modelo="a,b")
+    assert len(falso.chamadas) == 1

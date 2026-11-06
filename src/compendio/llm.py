@@ -157,23 +157,35 @@ class LLM:
                 espera = min(espera * 2, 60)
         raise AssertionError("inalcançável")
 
+    def _em_cadeia(self, modelos: str, fazer: Callable[[str], Any]) -> tuple[Any, int]:
+        """Tenta cada modelo da cadeia ("a,b,c"); só passa ao próximo em erro temporário."""
+        cadeia = [m.strip() for m in modelos.split(",") if m.strip()]
+        total = 0
+        for i, modelo in enumerate(cadeia):
+            try:
+                resultado, tentativas = self._com_retentativas(lambda: fazer(modelo))
+                return resultado, total + tentativas
+            except Exception as erro:  # noqa: BLE001
+                total += self.max_tentativas
+                if i == len(cadeia) - 1 or not _e_limite_de_taxa(erro):
+                    raise
+        raise ValueError("nenhum modelo informado")
+
     def estruturado(self, *, etapa: str, instrucoes: str, conteudo: str, schema: type[BaseModel] | dict,
                     nome_tool: str = "registrar", descricao_tool: str = "Registra o resultado no formato exigido.",
                     modelo: str | None = None, max_tokens: int | None = None) -> Resposta:
-        modelo = modelo or self.config.modelo_rapido
         inicio = time.perf_counter()
-        (dados, uso), tentativas = self._com_retentativas(lambda: self._estruturado(
-            etapa, instrucoes, conteudo, schema, nome_tool, descricao_tool, modelo,
-            max_tokens or self.config.max_tokens))
+        (dados, uso), tentativas = self._em_cadeia(modelo or self.config.modelo_rapido, lambda m: self._estruturado(
+            etapa, instrucoes, conteudo, schema, nome_tool, descricao_tool, m, max_tokens or self.config.max_tokens))
         uso.segundos = round(time.perf_counter() - inicio, 3)
         uso.tentativas = tentativas
         self.registro.adicionar(uso)
         return Resposta(dados=dados, uso=uso)
 
     def texto(self, *, etapa: str, conteudo: str, modelo: str | None = None, max_tokens: int = 256) -> Resposta:
-        modelo = modelo or self.config.modelo_rapido
         inicio = time.perf_counter()
-        (texto, uso), tentativas = self._com_retentativas(lambda: self._texto(etapa, conteudo, modelo, max_tokens))
+        (texto, uso), tentativas = self._em_cadeia(
+            modelo or self.config.modelo_rapido, lambda m: self._texto(etapa, conteudo, m, max_tokens))
         uso.segundos = round(time.perf_counter() - inicio, 3)
         uso.tentativas = tentativas
         self.registro.adicionar(uso)
@@ -243,6 +255,10 @@ class GeminiLLM(LLM):
         if cliente is None:
             if not config.api_key:
                 raise RuntimeError("GEMINI_API_KEY não configurada (veja .env.example).")
+            import warnings
+
+            # o próprio SDK do Google tem um "\/" numa docstring; o aviso é inofensivo
+            warnings.filterwarnings("ignore", message=r"invalid escape sequence", category=SyntaxWarning)
             from google import genai
 
             # timeout em milissegundos; sem ele uma resposta lenta trava o programa indefinidamente

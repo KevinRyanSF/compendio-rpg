@@ -19,7 +19,11 @@ except ImportError:  # pragma: no cover - dotenv é dependência, mas não quebr
 
 PROVEDORES = {
     # rápido = trabalho em volume (extrair cada trecho); forte = decisões (mapear, descobrir esquema, validar)
-    "gemini": {"chave": "GEMINI_API_KEY", "rapido": "gemini-3.5-flash-lite", "forte": "gemini-3.8-flash"},
+    # vários modelos separados por vírgula = cadeia de reserva: se o primeiro estiver
+    # indisponível (503/429) depois das retentativas, a chamada passa para o próximo
+    "gemini": {"chave": "GEMINI_API_KEY",
+               "rapido": "gemini-3.5-flash-lite,gemini-3.1-flash-lite",
+               "forte": "gemini-3.8-flash,gemini-3.6-flash"},
     "claude": {"chave": "ANTHROPIC_API_KEY", "rapido": "claude-haiku-5-5", "forte": "claude-sonnet-5-5"},
 }
 

@@ -49,8 +49,9 @@ def cmd_verificar(args) -> int:
             print(f"testando {papel} ({modelo})... ", end="", flush=True)
             try:
                 r = llm.texto(etapa="verificar", conteudo="Responda só: ok", modelo=modelo, max_tokens=1024)
+                reserva = f" [respondeu o reserva {r.uso.modelo}]" if r.uso.modelo != modelo.split(",")[0] else ""
                 print(f"ok — {r.dados['texto'].strip()!r} em {r.uso.segundos:.1f}s "
-                      f"({r.uso.entrada}+{r.uso.saida} tokens)")
+                      f"({r.uso.entrada}+{r.uso.saida} tokens){reserva}")
             except Exception as erro:  # noqa: BLE001
                 falhas += 1
                 print(f"FALHOU: {type(erro).__name__}: {str(erro)[:300]}")
